@@ -1,0 +1,1049 @@
+// =====================================================================
+// APPLICATION STATE & INTERACTIVE ENGINE
+// Split from the original single-file prototype (qamqor_bilim.html)
+// AI calls (adapter, todo) go to the local backend: /api/adapter, /api/todo
+// =====================================================================
+    /**
+     * 5. CENTRALIZED APPLICATION STATE
+     */
+    const state = {
+      lang: "ru",                 // Default: Russian ('ru' | 'kk')
+      profile: "standard",        // 'standard' | 'dyslexia' | 'asd' | 'adhd' | 'vision'
+      view: "hub",                // 'hub' | 'library' | 'reader' | 'adapter' | 'todo' | 'schedule' | 'aac'
+
+      // Book Reader State
+      bookId: "baikonur",
+      bookPage: 0,
+      bookMode: "normal",         // 'normal' | 'simple'
+      bookSyllables: false,
+      readingRuler: false,
+      rulerLineIndex: 0,
+      readerSize: 20,
+      speechRate: 0.9,
+      isSpeaking: false,
+      spokenWordIndex: -1,
+      speechTimer: null,
+      selectedWord: null,
+
+      // AI Lesson Adapter State
+      adapterData: null,
+      adapterQuizAnswer: null,
+
+      // Magic ToDo State
+      todoTaskTitle: "",
+      todoLevel: 2,
+      todoSteps: [],
+      todoChecked: [],
+
+      // Visual Schedule State
+      scheduleDone: [false, false, false],
+
+      // AAC Sentence Strip State
+      aacPhrase: []
+    };
+
+    /**
+     * 7. CORE UTILITIES: SYLLABIFICATION, TOAST, BREATHING MODAL, SPEECH ENGINE
+     */
+    const VOWEL_RE = /[аәеёиоөуұүыіэюяАӘЕЁИОӨУҰҮЫІЭЮЯ]/;
+    function splitSyllables(word) {
+      if (!word || word.length < 4) return word;
+      const m = word.match(/^([^a-zA-Zа-яА-ЯәғқңөұүһіӘҒҚҢӨҰҮҺІ]*)(.*?)([^a-zA-Zа-яА-ЯәғқңөұүһіӘҒҚҢӨҰҮҺІ]*)$/);
+      if (!m || m[2].length < 4) return word;
+      const [, pre, core, suf] = m;
+      const chars = Array.from(core);
+      const vowels = [];
+      chars.forEach((c, i) => { if (VOWEL_RE.test(c)) vowels.push(i); });
+      if (vowels.length <= 1) return word;
+
+      const cuts = new Set();
+      for (let i = 0; i < vowels.length - 1; i++) {
+        const gap = vowels[i + 1] - vowels[i] - 1;
+        if (gap === 0) cuts.add(vowels[i + 1]);
+        else if (gap === 1) cuts.add(vowels[i] + 1);
+        else cuts.add(vowels[i] + 2);
+      }
+      let res = "";
+      chars.forEach((c, i) => {
+        if (cuts.has(i) && i > 0) res += "·";
+        res += c;
+      });
+      return pre + res + suf;
+    }
+
+    function showToast(msg, icon = "✨") {
+      const el = document.getElementById("status-toast");
+      document.getElementById("status-toast-text").textContent = msg;
+      document.getElementById("status-toast-icon").textContent = icon;
+      el.classList.remove("opacity-0", "pointer-events-none", "translate-y-2");
+      el.classList.add("opacity-100", "translate-y-0");
+      clearTimeout(el._t);
+      el._t = setTimeout(() => {
+        el.classList.add("opacity-0", "pointer-events-none", "translate-y-2");
+        el.classList.remove("opacity-100", "translate-y-0");
+      }, 3000);
+    }
+
+    function playSoftTone(freq = 523.25) {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.32);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.34);
+      } catch (e) {}
+    }
+
+    // Speech Synthesis with Karaoke Word-by-Word Highlighting
+    function stopAllSpeech() {
+      state.isSpeaking = false;
+      state.spokenWordIndex = -1;
+      clearInterval(state.speechTimer);
+      if ("speechSynthesis" in window) {
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+      }
+      updateReaderSpeakUI();
+      if (state.view === "reader") renderBookPage();
+    }
+
+    function speakPhraseSimple(text, rate = 0.85) {
+      stopAllSpeech();
+      if (!("speechSynthesis" in window)) return;
+      try {
+        const u = new SpeechSynthesisUtterance(text.replace(/·/g, ""));
+        u.lang = state.lang === "kk" ? "kk-KZ" : "ru-RU";
+        u.rate = rate;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+
+    function toggleBookReadAloud() {
+      if (state.isSpeaking) {
+        stopAllSpeech();
+        return;
+      }
+      const book = BOOKS_DATA.find(b => b.id === state.bookId)[state.lang];
+      const pageObj = book.pages[state.bookPage];
+      const paragraphs = state.bookMode === "simple" ? pageObj.simple : pageObj.normal;
+      const fullText = paragraphs.join(" ");
+      const words = fullText.split(/\s+/).filter(Boolean);
+      if (!words.length) return;
+
+      state.isSpeaking = true;
+      state.spokenWordIndex = 0;
+      updateReaderSpeakUI();
+      renderBookPage();
+
+      let idx = 0;
+      const stepMs = Math.round(410 / state.speechRate);
+      state.speechTimer = setInterval(() => {
+        idx++;
+        if (idx < words.length) {
+          state.spokenWordIndex = idx;
+          renderBookPage();
+        } else {
+          stopAllSpeech();
+        }
+      }, stepMs);
+
+      if ("speechSynthesis" in window) {
+        try {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(fullText);
+          utter.lang = state.lang === "kk" ? "kk-KZ" : "ru-RU";
+          utter.rate = state.speechRate;
+
+          let charStarts = [];
+          let pos = 0;
+          words.forEach((w, wIdx) => {
+            charStarts.push({ pos, wIdx });
+            pos += w.length + 1;
+          });
+
+          utter.onboundary = (ev) => {
+            if (ev.name === "word") {
+              clearInterval(state.speechTimer);
+              let matched = 0;
+              for (let i = 0; i < charStarts.length; i++) {
+                if (ev.charIndex >= charStarts[i].pos) matched = charStarts[i].wIdx;
+              }
+              state.spokenWordIndex = matched;
+              renderBookPage();
+            }
+          };
+
+          utter.onend = () => stopAllSpeech();
+          utter.onerror = () => {};
+          window.speechSynthesis.speak(utter);
+        } catch (e) {}
+      }
+    }
+
+    function updateReaderSpeakUI() {
+      const t = UI_STRINGS[state.lang];
+      const iconEl = document.getElementById("book-speak-icon");
+      const lblEl = document.getElementById("ui-book-speak-lbl");
+      const stopEl = document.getElementById("btn-book-stop");
+      if (!iconEl || !lblEl) return;
+      if (state.isSpeaking) {
+        iconEl.textContent = "⏸️";
+        lblEl.textContent = t.bookPause;
+        stopEl.classList.remove("hidden");
+      } else {
+        iconEl.textContent = "🔊";
+        lblEl.textContent = t.bookSpeak;
+        stopEl.classList.add("hidden");
+      }
+    }
+
+    /**
+     * 8. ACCESSIBILITY PROFILES & NAVIGATION
+     */
+    function setAccessibilityProfile(prof) {
+      stopAllSpeech();
+      state.profile = prof;
+      document.body.classList.remove(
+        "profile-standard",
+        "profile-dyslexia",
+        "profile-asd",
+        "profile-adhd",
+        "profile-vision"
+      );
+      document.body.classList.add(`profile-${prof}`);
+
+      if (prof === "dyslexia") {
+        state.bookSyllables = true;
+        state.readingRuler = true;
+        state.readerSize = 22;
+      } else if (prof === "adhd") {
+        state.readingRuler = true;
+        state.rulerLineIndex = 0;
+      } else if (prof === "vision") {
+        state.readerSize = 25;
+      } else if (prof === "standard") {
+        state.bookSyllables = false;
+        state.readingRuler = false;
+        state.readerSize = 20;
+      }
+
+      document.documentElement.style.setProperty("--reader-size", `${state.readerSize}px`);
+      showToast(UI_STRINGS[state.lang].profiles[prof], "🎯");
+      renderAll();
+    }
+
+    function setLanguage(lang) {
+      stopAllSpeech();
+      state.lang = lang;
+      state.selectedWord = null;
+      loadAdapterPreset("water", true);
+      selectTodoPreset("math", true);
+      renderAll();
+    }
+
+    function navigateView(viewName) {
+      stopAllSpeech();
+      state.view = viewName;
+      ["hub", "library", "reader", "adapter", "todo", "schedule", "aac"].forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (el) el.classList.toggle("hidden", v !== viewName);
+      });
+      window.scrollTo({ top: 0, behavior: state.profile === "asd" ? "auto" : "smooth" });
+      renderAll();
+    }
+
+    // Calm Break Breathing Modal
+    let breatheInterval = null;
+    function openCalmBreakModal() {
+      stopAllSpeech();
+      const modal = document.getElementById("calm-break-modal");
+      modal.classList.remove("hidden");
+      let inhale = true;
+      const phaseEl = document.getElementById("breathe-phase-text");
+      phaseEl.textContent = UI_STRINGS[state.lang].breatheIn;
+      clearInterval(breatheInterval);
+      breatheInterval = setInterval(() => {
+        inhale = !inhale;
+        phaseEl.textContent = inhale ? UI_STRINGS[state.lang].breatheIn : UI_STRINGS[state.lang].breatheOut;
+      }, 2500);
+    }
+
+    function closeCalmBreakModal() {
+      clearInterval(breatheInterval);
+      document.getElementById("calm-break-modal").classList.add("hidden");
+    }
+
+    /**
+     * 9. BOOK LIBRARY & INTERACTIVE READER ACTIONS
+     */
+    function openReaderWithBook(bookId) {
+      stopAllSpeech();
+      state.bookId = bookId;
+      state.bookPage = 0;
+      state.rulerLineIndex = 0;
+      state.selectedWord = null;
+      navigateView("reader");
+    }
+
+    function setBookMode(mode) {
+      stopAllSpeech();
+      state.bookMode = mode;
+      state.rulerLineIndex = 0;
+      renderBookPage();
+      renderReaderToolbar();
+    }
+
+    function toggleBookSyllables() {
+      state.bookSyllables = !state.bookSyllables;
+      renderBookPage();
+      renderReaderToolbar();
+      renderWordHelperCard();
+    }
+
+    function toggleReadingRuler() {
+      state.readingRuler = !state.readingRuler;
+      state.rulerLineIndex = 0;
+      renderBookPage();
+      renderReaderToolbar();
+    }
+
+    function stepReadingRuler(delta) {
+      const book = BOOKS_DATA.find(b => b.id === state.bookId)[state.lang];
+      const lines = state.bookMode === "simple" ? book.pages[state.bookPage].simple : book.pages[state.bookPage].normal;
+      state.rulerLineIndex = (state.rulerLineIndex + delta + lines.length) % lines.length;
+      renderBookPage();
+    }
+
+    function setBookSpeechRate(rate) {
+      state.speechRate = rate;
+      if (state.isSpeaking) {
+        stopAllSpeech();
+        toggleBookReadAloud();
+      }
+      renderReaderToolbar();
+    }
+
+    function adjustReaderSize(delta) {
+      state.readerSize = Math.min(30, Math.max(16, state.readerSize + delta));
+      document.documentElement.style.setProperty("--reader-size", `${state.readerSize}px`);
+      renderReaderToolbar();
+    }
+
+    function turnBookPage(delta) {
+      stopAllSpeech();
+      const book = BOOKS_DATA.find(b => b.id === state.bookId)[state.lang];
+      const next = state.bookPage + delta;
+      if (next < 0) return;
+      if (next >= book.pages.length) {
+        playSoftTone(659.25);
+        showToast(UI_STRINGS[state.lang].pageFinish, "🌟");
+        navigateView("library");
+        return;
+      }
+      state.bookPage = next;
+      state.rulerLineIndex = 0;
+      state.selectedWord = null;
+      playSoftTone(523.25);
+      renderBookPage();
+      renderWordHelperCard();
+    }
+
+    function handleWordClick(rawWord) {
+      stopAllSpeech();
+      const clean = rawWord.replace(/[.,!?;:()«»"—–-]/g, "");
+      if (!clean) return;
+      state.selectedWord = clean;
+      playSoftTone(587.33);
+      renderBookPage();
+      renderWordHelperCard();
+      speakPhraseSimple(clean, 0.72);
+    }
+
+    function getChildFriendlyWordExplanation(word) {
+      const lower = word.toLowerCase();
+      if (WORD_GLOSSARY[lower]) return WORD_GLOSSARY[lower];
+      // Partial stem match in glossary
+      for (const [key, val] of Object.entries(WORD_GLOSSARY)) {
+        if (lower.startsWith(key.slice(0, 5)) && key.length >= 5) return val;
+      }
+      if (state.lang === "kk") {
+        return `«${word}» — бұл сөйлемдегі маңызды сөз. Төмендегі батырманы басып, оның баяу айтылуын тыңдай аласың.`;
+      }
+      return `«${word}» — важное слово из этого предложения. Нажми кнопку ниже, чтобы послушать, как оно звучит медленно и чётко.`;
+    }
+
+    /**
+     * 10. AI LESSON ADAPTER "1 IN 4" (GEMINI API + BUILT-IN FALLBACK)
+     */
+    function loadAdapterPreset(key, silent = false) {
+      const preset = ADAPTER_PRESETS[key][state.lang];
+      document.getElementById("adapter-input-title").value = preset.title;
+      document.getElementById("adapter-input-text").value = preset.text;
+      state.adapterData = preset;
+      state.adapterQuizAnswer = null;
+      if (!silent) renderAdapterOutput();
+    }
+
+    async function runLessonAdapterAI() {
+      const titleVal = document.getElementById("adapter-input-title").value.trim();
+      const textVal = document.getElementById("adapter-input-text").value.trim();
+      if (!textVal) {
+        showToast(state.lang === "ru" ? "Введите текст урока" : "Сабақ мәтінін енгізіңіз", "⚠️");
+        return;
+      }
+
+      const btn = document.getElementById("btn-generate-4in1");
+      const spinner = document.getElementById("adapter-spinner");
+      btn.disabled = true;
+      spinner.classList.remove("hidden");
+
+      let parsed = null;
+      try {
+        const res = await fetch("/api/adapter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: titleVal, text: textVal, lang: state.lang })
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        parsed = await res.json();
+      } catch (e) {
+        // Сервер сам отвечает локальным фолбэком при сбое LLM; сюда попадаем только при потере сети
+        showToast(state.lang === "ru" ? "Соединение с сервером потеряно" : "Серверге байланыс жоқ", "⚠️");
+        btn.disabled = false;
+        spinner.classList.add("hidden");
+        return;
+      }
+
+      state.adapterData = parsed;
+      state.adapterQuizAnswer = null;
+      btn.disabled = false;
+      spinner.classList.add("hidden");
+      playSoftTone(659.25);
+      showToast(state.lang === "ru" ? "Урок адаптирован в 4 формата!" : "Сабақ 4 форматқа бейімделді!", "✨");
+      renderAdapterOutput();
+    }
+
+    /**
+     * 11. SMART TASK BREAKER (GOBLIN TOOLS MAGIC TODO)
+     */
+    function selectTodoPreset(key, silent = false) {
+      const p = TODO_PRESETS[key][state.lang];
+      state.todoTaskTitle = p.title;
+      document.getElementById("todo-custom-input").value = p.title;
+      state.todoSteps = [...p[state.todoLevel]];
+      state.todoChecked = state.todoSteps.map(() => false);
+      if (!silent) renderTodoSteps();
+    }
+
+    function setTodoLevel(lvl) {
+      state.todoLevel = lvl;
+      renderTodoToolbar();
+      // Re-run breakdown on current task
+      const curTitle = document.getElementById("todo-custom-input").value.trim();
+      for (const key of Object.keys(TODO_PRESETS)) {
+        if (TODO_PRESETS[key][state.lang].title === curTitle) {
+          selectTodoPreset(key);
+          return;
+        }
+      }
+      runTaskBreakerAI();
+    }
+
+    async function runTaskBreakerAI() {
+      const taskText = document.getElementById("todo-custom-input").value.trim();
+      if (!taskText) {
+        showToast(state.lang === "ru" ? "Напишите задание" : "Тапсырманы жазыңыз", "⚠️");
+        return;
+      }
+
+      // Check if matches preset first
+      for (const key of Object.keys(TODO_PRESETS)) {
+        if (TODO_PRESETS[key][state.lang].title.toLowerCase() === taskText.toLowerCase()) {
+          selectTodoPreset(key);
+          return;
+        }
+      }
+
+      const btn = document.getElementById("btn-break-task");
+      const spinner = document.getElementById("todo-spinner");
+      btn.disabled = true;
+      spinner.classList.remove("hidden");
+
+      let stepsArr = null;
+      try {
+        const res = await fetch("/api/todo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task: taskText, level: state.todoLevel, lang: state.lang })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.steps)) stepsArr = data.steps;
+        }
+      } catch (e) {}
+
+      if (!stepsArr || !Array.isArray(stepsArr)) {
+        const isKK = state.lang === "kk";
+        stepsArr = isKK
+          ? [
+              `Жұмыс орнын дайындау: «${taskText}»`,
+              "Қажетті құралдарды үстелге қою",
+              "Бірінші кішкентай бөлігін орындау",
+              "Терең тыныс алып, 1 минут демалу",
+              "Қалған бөлігін байсалды аяқтау"
+            ]
+          : [
+              `Подготовить рабочее место для: «${taskText}»`,
+              "Положить рядом всё необходимое",
+              "Сделать самую первую маленькую часть",
+              "Сделать спокойный вдох и выдох",
+              "Завершить оставшуюся часть без спешки"
+            ];
+      }
+
+      state.todoTaskTitle = taskText;
+      state.todoSteps = stepsArr;
+      state.todoChecked = stepsArr.map(() => false);
+      btn.disabled = false;
+      spinner.classList.add("hidden");
+      playSoftTone(587.33);
+      renderTodoSteps();
+    }
+
+    function toggleTodoStep(idx) {
+      state.todoChecked[idx] = !state.todoChecked[idx];
+      if (state.todoChecked[idx]) playSoftTone(659.25);
+      renderTodoSteps();
+    }
+
+    /**
+     * 12. VISUAL SCHEDULE, SOCIAL STORY & AAC SENTENCE BUILDER
+     */
+    function toggleScheduleCard(idx) {
+      state.scheduleDone[idx] = !state.scheduleDone[idx];
+      if (state.scheduleDone[idx]) playSoftTone(587.33);
+      renderScheduleView();
+    }
+
+    function speakSocialStoryText() {
+      const items = SCHEDULE_DATA[state.lang].story;
+      const text = items.map(i => `${i.title}. ${i.text}`).join(" ");
+      speakPhraseSimple(text, state.speechRate);
+    }
+
+    function addAACCard(pictoId) {
+      const item = AAC_PICTOGRAMS.find(p => p.id === pictoId);
+      if (!item) return;
+      state.aacPhrase.push(item);
+      playSoftTone(523.25);
+      speakPhraseSimple(item[state.lang], 0.9);
+      renderAACView();
+    }
+
+    function backspaceAAC() {
+      state.aacPhrase.pop();
+      renderAACView();
+    }
+
+    function clearAAC() {
+      state.aacPhrase = [];
+      renderAACView();
+    }
+
+    function speakAACSentence() {
+      if (!state.aacPhrase.length) {
+        showToast(UI_STRINGS[state.lang].aacPlaceholder, "💬");
+        return;
+      }
+      const sentence = state.aacPhrase.map(p => p[state.lang]).join(" ");
+      speakPhraseSimple(sentence, 0.88);
+    }
+
+    /**
+     * 13. COMPLETE RENDERING PIPELINE
+     */
+    function renderAll() {
+      renderHeaderAndNav();
+      renderHubAndLibrary();
+      renderReaderToolbar();
+      renderBookPage();
+      renderWordHelperCard();
+      renderAdapterOutput();
+      renderTodoToolbar();
+      renderTodoSteps();
+      renderScheduleView();
+      renderAACView();
+    }
+
+    function renderHeaderAndNav() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("ui-brand-badge").textContent = t.brandBadge;
+      document.getElementById("ui-brand-sub").textContent = t.brandSub;
+      document.getElementById("ui-break-btn").textContent = t.breakBtn;
+
+      // Language Switcher Buttons
+      const btnRu = document.getElementById("lang-btn-ru");
+      const btnKk = document.getElementById("lang-btn-kk");
+      btnRu.className = `tactile-btn px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "ru" ? "btn-sage shadow-sm" : "opacity-75"}`;
+      btnKk.className = `tactile-btn px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "kk" ? "btn-sage shadow-sm" : "opacity-75"}`;
+
+      // Profile Selector Pills
+      const profBar = document.getElementById("profile-selector-bar");
+      profBar.innerHTML = Object.entries(t.profiles).map(([key, label]) => {
+        const active = state.profile === key;
+        return `
+          <button onclick="setAccessibilityProfile('${key}')"
+            class="tactile-btn px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-extrabold shrink-0 border-2 ${
+              active ? "btn-sage border-transparent shadow-sm" : "bento-soft border-transparent hover:opacity-90"
+            }">
+            ${label}
+          </button>
+        `;
+      }).join("");
+
+      // Top Bento Navigation Pills
+      const navBar = document.getElementById("top-nav-pills");
+      navBar.innerHTML = Object.entries(t.nav).map(([vKey, label]) => {
+        const active = state.view === vKey || (vKey === "library" && state.view === "reader");
+        return `
+          <button onclick="navigateView('${vKey}')"
+            class="tactile-btn px-4 py-2 rounded-2xl text-xs sm:text-sm font-nunito font-extrabold shrink-0 border-2 ${
+              active ? "pill-amber border-current" : "bento-soft border-transparent hover:opacity-90"
+            }">
+            ${label}
+          </button>
+        `;
+      }).join("");
+
+      // Modal strings
+      document.getElementById("ui-modal-break-title").textContent = t.modalBreakTitle;
+      document.getElementById("ui-modal-break-desc").textContent = t.modalBreakDesc;
+      document.getElementById("ui-modal-break-close").textContent = t.modalBreakClose;
+    }
+
+    function renderHubAndLibrary() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("ui-hub-welcome").textContent = t.hubWelcome;
+      document.getElementById("ui-hub-desc").textContent = t.hubDesc;
+      document.getElementById("ui-hub-quick-read").textContent = t.hubQuickRead;
+
+      document.getElementById("ui-cell1-title").textContent = t.cell1Title;
+      document.getElementById("ui-cell1-all-btn").textContent = t.cell1AllBtn;
+      document.getElementById("ui-cell1-desc").textContent = t.cell1Desc;
+      document.getElementById("ui-cell2-title").textContent = t.cell2Title;
+      document.getElementById("ui-cell2-desc").textContent = t.cell2Desc;
+      document.getElementById("ui-cell2-cta").textContent = t.cell2Cta;
+      document.getElementById("ui-cell3-title").textContent = t.cell3Title;
+      document.getElementById("ui-cell3-desc").textContent = t.cell3Desc;
+      document.getElementById("ui-cell3-cta").textContent = t.cell3Cta;
+      document.getElementById("ui-cell4-title").textContent = t.cell4Title;
+      document.getElementById("ui-cell4-desc").textContent = t.cell4Desc;
+      document.getElementById("ui-cell4-cta").textContent = t.cell4Cta;
+      document.getElementById("ui-cell5-title").textContent = t.cell5Title;
+      document.getElementById("ui-cell5-desc").textContent = t.cell5Desc;
+      document.getElementById("ui-cell5-cta").textContent = t.cell5Cta;
+
+      document.getElementById("ui-lib-title").textContent = t.libTitle;
+      document.getElementById("ui-lib-sub").textContent = t.libSub;
+      ["1", "2", "3", "4", "5"].forEach(n => {
+        const el = document.getElementById(`ui-back-hub-${n}`);
+        if (el) el.textContent = t.backHub;
+      });
+
+      // Render 4 Books inside Hub Cell 1
+      const hubGrid = document.getElementById("hub-books-grid");
+      hubGrid.innerHTML = BOOKS_DATA.map(book => {
+        const loc = book[state.lang];
+        return `
+          <button onclick="openReaderWithBook('${book.id}')"
+            class="tactile-btn bento-soft p-3.5 text-left flex flex-col justify-between gap-2.5 border-2 border-transparent hover:border-current transition-all">
+            <div class="w-full rounded-2xl overflow-hidden">
+              ${getBookIllustrationSVG(book.id, false)}
+            </div>
+            <div>
+              <span class="text-[11px] font-extrabold pill-${book.accent} px-2.5 py-0.5 rounded-full">
+                ${loc.tag}
+              </span>
+              <h3 class="font-nunito font-black text-sm sm:text-base mt-1.5 leading-snug">
+                ${loc.title}
+              </h3>
+            </div>
+          </button>
+        `;
+      }).join("");
+
+      // Render Full Bookshelf Grid in Library View
+      const libGrid = document.getElementById("full-library-grid");
+      libGrid.innerHTML = BOOKS_DATA.map(book => {
+        const loc = book[state.lang];
+        return `
+          <div class="bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-4">
+            <div class="flex flex-col gap-3">
+              <div class="w-full rounded-3xl overflow-hidden border" style="border-color: var(--border-card);">
+                ${getBookIllustrationSVG(book.id, true)}
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="px-3 py-1 rounded-full text-xs font-extrabold pill-${book.accent}">
+                  ${loc.tag}
+                </span>
+                <span class="text-xs font-bold" style="color: var(--text-muted);">
+                  ${t.pagesCount(loc.pages.length)}
+                </span>
+              </div>
+              <h2 class="font-nunito font-black text-xl leading-snug">${loc.title}</h2>
+              <p class="text-sm leading-relaxed" style="color: var(--text-muted);">${loc.summary}</p>
+            </div>
+            <button onclick="openReaderWithBook('${book.id}')" class="tactile-btn w-full py-3.5 rounded-2xl btn-sage font-nunito font-extrabold text-base">
+              ${t.readBookBtn}
+            </button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderReaderToolbar() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("ui-reader-back").textContent = t.readerBack;
+      document.getElementById("btn-book-normal").textContent = t.bookNormal;
+      document.getElementById("btn-book-simple").textContent = t.bookSimple;
+
+      document.getElementById("btn-book-normal").className = `tactile-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold ${
+        state.bookMode === "normal" ? "btn-sage shadow-sm" : "opacity-80"
+      }`;
+      document.getElementById("btn-book-simple").className = `tactile-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold ${
+        state.bookMode === "simple" ? "btn-amber shadow-sm" : "opacity-80"
+      }`;
+
+      document.getElementById("rate-btn-0.7").textContent = t.rateSlow;
+      document.getElementById("rate-btn-0.9").textContent = t.rateCalm;
+      document.getElementById("rate-btn-1.1").textContent = t.rateNorm;
+      [0.7, 0.9, 1.1].forEach(r => {
+        const el = document.getElementById(`rate-btn-${r}`);
+        el.className = `px-3 py-1.5 rounded-xl text-xs font-extrabold ${state.speechRate === r ? "btn-sage" : "opacity-75"}`;
+      });
+
+      document.getElementById("ui-book-syl-lbl").textContent = t.bookSyl;
+      document.getElementById("ui-book-ruler-lbl").textContent = t.bookRuler;
+      document.getElementById("ui-ruler-hint").textContent = t.rulerHint;
+      document.getElementById("ui-reader-size-badge").textContent = `${state.readerSize}px`;
+
+      document.getElementById("btn-book-syllables").className = `tactile-btn px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-1.5 border-2 ${
+        state.bookSyllables ? "pill-plum border-current" : "bento-soft border-transparent"
+      }`;
+      document.getElementById("btn-book-ruler").className = `tactile-btn px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-1.5 border-2 ${
+        state.readingRuler ? "pill-amber border-current" : "bento-soft border-transparent"
+      }`;
+      document.getElementById("ruler-nav-bar").classList.toggle("hidden", !state.readingRuler);
+
+      document.getElementById("ui-child-support-lbl").textContent = t.childSupportLbl;
+      document.getElementById("ui-sup-read").textContent = t.supRead;
+      document.getElementById("ui-sup-simple").textContent = t.supSimple;
+      document.getElementById("ui-sup-syllables").textContent = t.supSyllables;
+      document.getElementById("ui-sup-break").textContent = t.supBreak;
+      updateReaderSpeakUI();
+    }
+
+    function renderBookPage() {
+      const t = UI_STRINGS[state.lang];
+      const bookObj = BOOKS_DATA.find(b => b.id === state.bookId) || BOOKS_DATA[0];
+      const book = bookObj[state.lang];
+      const totalPages = book.pages.length;
+      const curPage = book.pages[state.bookPage];
+
+      document.getElementById("reader-book-tag").textContent = book.tag;
+      document.getElementById("reader-page-counter").textContent = t.pageOf(state.bookPage + 1, totalPages);
+      document.getElementById("reader-book-title").textContent = state.bookSyllables
+        ? book.title.split(/\s+/).map(splitSyllables).join(" ")
+        : book.title;
+      document.getElementById("reader-book-illustration").innerHTML = getBookIllustrationSVG(bookObj.id, true);
+
+      const paragraphs = state.bookMode === "simple" ? curPage.simple : curPage.normal;
+      const textContainer = document.getElementById("reader-book-text");
+      textContainer.classList.toggle("reading-ruler-on", state.readingRuler);
+
+      let wordCursor = 0;
+      textContainer.innerHTML = paragraphs.map((line, lineIdx) => {
+        const tokens = line.split(/\s+/).filter(Boolean);
+        const wordsHtml = tokens.map(raw => {
+          const wIdx = wordCursor++;
+          const clean = raw.replace(/[.,!?;:()«»"—–-]/g, "");
+          const isSpoken = state.isSpeaking && state.spokenWordIndex === wIdx;
+          const isSelected = state.selectedWord && clean.toLowerCase() === state.selectedWord.toLowerCase();
+          const shown = state.bookSyllables ? splitSyllables(raw) : raw;
+
+          const cls = ["book-word"];
+          if (isSpoken) cls.push("word-spoken");
+          else if (isSelected) cls.push("word-selected");
+
+          const escaped = raw.replace(/'/g, "\\'");
+          return `<span onclick="event.stopPropagation(); handleWordClick('${escaped}')" class="${cls.join(" ")}">${shown}</span>`;
+        }).join(" ");
+
+        const activeRuler = state.readingRuler && state.rulerLineIndex === lineIdx ? "ruler-active" : "";
+        return `<div onclick="if(state.readingRuler){ state.rulerLineIndex=${lineIdx}; renderBookPage(); }" class="reader-line-block ${activeRuler}">${wordsHtml}</div>`;
+      }).join("");
+
+      // Page Turn Controls
+      const prevBtn = document.getElementById("btn-page-prev");
+      const nextBtn = document.getElementById("btn-page-next");
+      prevBtn.textContent = t.pagePrev;
+      prevBtn.disabled = state.bookPage === 0;
+      prevBtn.style.opacity = state.bookPage === 0 ? "0.45" : "1";
+      nextBtn.textContent = state.bookPage === totalPages - 1 ? t.pageFinish : t.pageNext;
+
+      document.getElementById("page-dots-indicator").innerHTML = book.pages.map((_, idx) => `
+        <span class="w-3 h-3 rounded-full ${idx === state.bookPage ? "btn-sage" : "bento-soft"}"></span>
+      `).join("");
+    }
+
+    function renderWordHelperCard() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("ui-word-helper-title").textContent = t.wordHelperTitle;
+      document.getElementById("ui-word-helper-sub").textContent = t.wordHelperSub;
+
+      const card = document.getElementById("word-helper-card");
+      if (!state.selectedWord) {
+        card.innerHTML = `
+          <div class="text-center py-4 flex flex-col items-center gap-3">
+            <span class="text-4xl">👆</span>
+            <p class="text-sm leading-relaxed" style="color: var(--text-muted);">
+              ${t.wordHelperEmpty}
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      const word = state.selectedWord;
+      const syllables = splitSyllables(word);
+      const explanation = getChildFriendlyWordExplanation(word);
+      const escaped = word.replace(/'/g, "\\'");
+
+      card.innerHTML = `
+        <div class="flex flex-col gap-3">
+          <div>
+            <span class="text-xs font-extrabold uppercase" style="color: var(--text-muted);">${t.wordSyllablesLbl}</span>
+            <div class="font-nunito font-black text-2xl mt-0.5" style="color: var(--sky);">
+              ${syllables}
+            </div>
+          </div>
+          <p class="text-sm leading-relaxed">
+            ${explanation}
+          </p>
+          <button onclick="speakPhraseSimple('${escaped}', 0.72)" class="tactile-btn w-full py-3 rounded-2xl btn-sky font-nunito font-extrabold text-sm flex items-center justify-center gap-2">
+            <span>${t.wordListenBtn}</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderAdapterOutput() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("ui-adp-title").textContent = t.adpTitle;
+      document.getElementById("ui-adp-sub").textContent = t.adpSub;
+      document.getElementById("ui-adp-presets-lbl").textContent = t.adpPresetsLbl;
+      document.getElementById("ui-adp-run-btn").textContent = t.adpRunBtn;
+
+      const grid = document.getElementById("adapter-output-grid");
+      const d = state.adapterData;
+      if (!d) return;
+
+      const isKK = state.lang === "kk";
+      const quizAnswered = state.adapterQuizAnswer !== null;
+      const quizCorrect = state.adapterQuizAnswer === d.quiz.correct;
+
+      grid.innerHTML = `
+        <!-- Format 1: Simplified Text (Diffit) -->
+        <div class="bento-card p-5 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="px-3 py-1 rounded-full text-xs font-extrabold pill-sage">1. Diffit • ${isKK ? "Жеңіл мәтін (ЗПР)" : "Лёгкий текст (ЗПР)"}</span>
+            <button onclick="speakPhraseSimple('${d.simple.join(" ").replace(/'/g, "\\'")}', 0.85)" class="tactile-btn px-3 py-1.5 rounded-xl bento-soft text-xs font-extrabold">🔊</button>
+          </div>
+          <div class="space-y-2 text-base leading-relaxed">
+            ${d.simple.map(s => `<p class="p-3 rounded-2xl bento-soft">${s}</p>`).join("")}
+          </div>
+        </div>
+
+        <!-- Format 2: Step-by-Step Micro Cards (LittleLit AI) -->
+        <div class="bento-card p-5 flex flex-col gap-3">
+          <span class="self-start px-3 py-1 rounded-full text-xs font-extrabold pill-sky">2. LittleLit AI • ${isKK ? "Микро-қадамдар" : "Микро-шаги"}</span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            ${d.steps.map(st => `
+              <div class="p-3.5 rounded-2xl bento-soft">
+                <div class="font-nunito font-black text-sm">${st.icon} ${st.title}</div>
+                <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-muted);">${st.text}</p>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <!-- Format 3: Visual PECS Cards (Boardmaker) -->
+        <div class="bento-card p-5 flex flex-col gap-3">
+          <span class="self-start px-3 py-1 rounded-full text-xs font-extrabold pill-amber">3. Boardmaker • ${isKK ? "PECS карточкалары" : "Карточки PECS"}</span>
+          <div class="grid grid-cols-3 gap-2.5">
+            ${d.pecs.map(pc => `
+              <button onclick="speakPhraseSimple('${pc.word}. ${pc.desc}', 0.85)" class="tactile-btn p-3 rounded-2xl bento-soft text-center flex flex-col items-center gap-1">
+                <span class="text-3xl">${pc.icon}</span>
+                <span class="font-nunito font-black text-sm">${pc.word}</span>
+                <span class="text-[11px]" style="color: var(--text-muted);">${pc.desc}</span>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+
+        <!-- Format 4: Gentle Self-Check Quiz -->
+        <div class="bento-card p-5 flex flex-col gap-3">
+          <span class="self-start px-3 py-1 rounded-full text-xs font-extrabold pill-plum">4. MagicSchool • ${isKK ? "Жұмсақ тексеру" : "Добрый вопрос"}</span>
+          <p class="font-nunito font-extrabold text-base">${d.quiz.q}</p>
+          <div class="space-y-2">
+            ${d.quiz.options.map((opt, idx) => {
+              let cls = "bento-soft";
+              if (quizAnswered && state.adapterQuizAnswer === idx) {
+                cls = idx === d.quiz.correct ? "btn-sage" : "btn-amber";
+              }
+              return `
+                <button onclick="state.adapterQuizAnswer=${idx}; playSoftTone(587.33); renderAdapterOutput();"
+                  class="tactile-btn w-full px-4 py-2.5 rounded-2xl text-left text-sm font-bold ${cls}">
+                  ${opt}
+                </button>
+              `;
+            }).join("")}
+          </div>
+          ${quizAnswered ? `<p class="text-xs font-extrabold" style="color: var(--sage);">${quizCorrect ? (isKK ? "🌟 Тамаша! Дұрыс жауап!" : "🌟 Отлично! Всё верно!") : (isKK ? "💡 Тағы бір рет байқап көр!" : "💡 Попробуй ещё раз — подсказка в тексте!")}</p>` : ""}
+        </div>
+      `;
+    }
+
+    function renderTodoToolbar() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("ui-todo-title").textContent = t.todoTitle;
+      document.getElementById("ui-todo-sub").textContent = t.todoSub;
+      document.getElementById("ui-todo-presets-lbl").textContent = t.todoPresetsLbl;
+      document.getElementById("ui-todo-spice-lbl").textContent = t.todoSpiceLbl;
+      document.getElementById("ui-todo-run-btn").textContent = t.todoRunBtn;
+
+      [1, 2, 3].forEach(lvl => {
+        const el = document.getElementById(`todo-lvl-${lvl}`);
+        el.className = `px-3 py-1.5 rounded-xl text-xs font-extrabold ${state.todoLevel === lvl ? "btn-amber" : "opacity-75"}`;
+      });
+    }
+
+    function renderTodoSteps() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("todo-active-task-title").textContent = state.todoTaskTitle;
+      const doneCount = state.todoChecked.filter(Boolean).length;
+      const total = state.todoSteps.length;
+      document.getElementById("todo-progress-text").textContent = t.todoDoneCount(doneCount, total);
+      const pct = total ? Math.round((doneCount / total) * 100) : 0;
+      document.getElementById("todo-progress-bar").style.width = `${pct}%`;
+
+      const listEl = document.getElementById("todo-steps-list");
+      listEl.innerHTML = state.todoSteps.map((step, idx) => {
+        const checked = state.todoChecked[idx];
+        return `
+          <button onclick="toggleTodoStep(${idx})"
+            class="tactile-btn w-full p-4 rounded-2xl text-left flex items-center gap-3.5 border-2 ${
+              checked ? "pill-sage border-current opacity-85" : "bento-soft border-transparent"
+            }">
+            <span class="text-2xl shrink-0">${checked ? "✅" : "⬜"}</span>
+            <span class="font-nunito font-extrabold text-base ${checked ? "line-through" : ""}">
+              ${idx + 1}. ${step}
+            </span>
+          </button>
+        `;
+      }).join("");
+
+      const cel = document.getElementById("todo-celebration");
+      document.getElementById("ui-todo-done-title").textContent = t.todoDoneTitle;
+      document.getElementById("ui-todo-done-sub").textContent = t.todoDoneSub;
+      cel.classList.toggle("hidden", !(total > 0 && doneCount === total));
+    }
+
+    function renderScheduleView() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("ui-sch-title").textContent = t.schTitle;
+      document.getElementById("ui-sch-sub").textContent = t.schSub;
+      document.getElementById("ui-sch-board-title").textContent = t.schBoardTitle;
+      document.getElementById("ui-sch-tap-hint").textContent = t.schTapHint;
+      document.getElementById("ui-soc-title").textContent = t.socTitle;
+      document.getElementById("ui-soc-listen").textContent = t.socListen;
+
+      const data = SCHEDULE_DATA[state.lang];
+      document.getElementById("visual-schedule-cards").innerHTML = data.cards.map((c, idx) => {
+        const done = state.scheduleDone[idx];
+        return `
+          <button onclick="toggleScheduleCard(${idx})"
+            class="tactile-btn p-5 rounded-3xl text-left flex flex-col justify-between gap-3 border-2 ${
+              done ? "pill-sage border-current" : "bento-soft border-transparent"
+            }">
+            <div class="flex items-center justify-between">
+              <span class="px-3 py-1 rounded-full text-xs font-black btn-sage">${idx + 1}. ${t.schStages[idx]}</span>
+              <span class="text-2xl">${done ? "✅" : "⬜"}</span>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-3xl">${c.icon}</span>
+              <div>
+                <div class="font-nunito font-black text-base">${c.title}</div>
+                <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-muted);">${c.desc}</p>
+              </div>
+            </div>
+          </button>
+        `;
+      }).join("");
+
+      document.getElementById("social-story-grid").innerHTML = data.story.map(s => `
+        <div class="bento-soft p-5 flex flex-col gap-2">
+          <span class="text-4xl">${s.icon}</span>
+          <h3 class="font-nunito font-black text-base">${s.title}</h3>
+          <p class="text-sm leading-relaxed" style="color: var(--text-muted);">${s.text}</p>
+        </div>
+      `).join("");
+    }
+
+    function renderAACView() {
+      const t = UI_STRINGS[state.lang];
+      document.getElementById("ui-aac-page-title").textContent = t.aacPageTitle;
+      document.getElementById("ui-aac-page-sub").textContent = t.aacPageSub;
+      document.getElementById("ui-aac-strip-lbl").textContent = t.aacStripLbl;
+      document.getElementById("ui-aac-del").textContent = t.aacDel;
+      document.getElementById("ui-aac-clear").textContent = t.aacClear;
+      document.getElementById("ui-aac-speak-btn").textContent = t.aacSpeakBtn;
+
+      const strip = document.getElementById("aac-sentence-strip");
+      if (!state.aacPhrase.length) {
+        strip.innerHTML = `<span class="text-sm font-bold px-2" style="color: var(--text-muted);">${t.aacPlaceholder}</span>`;
+      } else {
+        strip.innerHTML = state.aacPhrase.map(p => `
+          <span class="px-3.5 py-2 rounded-2xl pill-${p.color} font-nunito font-black text-sm sm:text-base flex items-center gap-1.5 border" style="border-color: currentColor;">
+            <span class="text-xl">${p.icon}</span>
+            <span>${p[state.lang]}</span>
+          </span>
+        `).join("");
+      }
+
+      document.getElementById("aac-cards-grid").innerHTML = AAC_PICTOGRAMS.map(p => `
+        <button onclick="addAACCard('${p.id}')"
+          class="tactile-btn bento-card bento-card-interactive p-5 flex flex-col items-center justify-center text-center gap-2.5">
+          <span class="w-16 h-16 rounded-3xl pill-${p.color} flex items-center justify-center text-4xl">
+            ${p.icon}
+          </span>
+          <span class="font-nunito font-black text-base sm:text-lg leading-tight">
+            ${p[state.lang]}
+          </span>
+        </button>
+      `).join("");
+    }
+
+    // Bootstrap Application
+    window.addEventListener("DOMContentLoaded", () => {
+      loadAdapterPreset("water", true);
+      selectTodoPreset("math", true);
+      renderAll();
+    });

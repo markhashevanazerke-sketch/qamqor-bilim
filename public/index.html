@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Qamqor Bilim — Единая инклюзивная платформа</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Nunito & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="profile-standard min-h-screen flex flex-col">
+
+  <!-- ===================================================================== -->
+  <!-- GLOBAL STICKY TOP ACCESSIBILITY & NAVIGATION HEADER                   -->
+  <!-- ===================================================================== -->
+  <header class="sticky top-0 z-40 border-b-2" style="background-color: var(--bg-card); border-color: var(--border-card);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col gap-2.5">
+
+      <!-- Row 1: Brand Logo + Language Switcher (РУС | ҚАЗ) + Calm Break Button -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <!-- Brand -->
+        <button onclick="navigateView('hub')" class="flex items-center gap-3 text-left group focus:outline-none">
+          <div class="w-12 h-12 rounded-2xl btn-sage flex items-center justify-center shrink-0 shadow-sm">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+              <path d="M14 4L16.4 9.6L22 12L16.4 14.4L14 20L11.6 14.4L6 12L11.6 9.6L14 4Z" fill="currentColor"/>
+              <path d="M6 22C9.5 19.8 12 19.8 14 21.5C16 19.8 18.5 19.8 22 22" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-nunito font-black text-xl sm:text-2xl tracking-tight leading-none" style="color: var(--text-main);">
+                Qamqor Bilim
+              </span>
+              <span id="ui-brand-badge" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold pill-sage">
+                Единая инклюзивная платформа
+              </span>
+            </div>
+            <p id="ui-brand-sub" class="text-xs sm:text-sm mt-0.5" style="color: var(--text-muted);">
+              Библиотека, ИИ-адаптер, Дробитель задач, План и Карточки AAC
+            </p>
+          </div>
+        </button>
+
+        <!-- Right Controls: Language Switcher & Calm Break -->
+        <div class="flex items-center gap-2.5">
+          <!-- Seamless РУС | ҚАЗ Toggle -->
+          <div class="bento-soft p-1 flex items-center" role="group" aria-label="Язык интерфейса / Тіл">
+            <button id="lang-btn-ru" onclick="setLanguage('ru')" class="tactile-btn px-4 py-1.5 rounded-2xl text-sm font-extrabold">
+              РУС
+            </button>
+            <button id="lang-btn-kk" onclick="setLanguage('kk')" class="tactile-btn px-4 py-1.5 rounded-2xl text-sm font-extrabold">
+              ҚАЗ
+            </button>
+          </div>
+
+          <!-- Always-Accessible Calm Break Button -->
+          <button onclick="openCalmBreakModal()" class="tactile-btn px-4 py-2 rounded-2xl pill-amber border-2 font-nunito font-extrabold text-sm flex items-center gap-2" style="border-color: var(--amber);">
+            <span class="text-lg">🧘</span>
+            <span id="ui-break-btn">Перерыв</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2: One-Click Student Accessibility Profile Selector -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pt-2 border-t" style="border-color: var(--border-card);">
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 lg:pb-0" id="profile-selector-bar">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+
+      <!-- Row 3: Bento Navigation Pills (Quick Switch Between All 5 Tools + Hub) -->
+      <nav id="top-nav-pills" class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1" aria-label="Разделы платформы">
+        <!-- Populated dynamically by JS -->
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN WORKSPACE CONTAINER                                              -->
+  <!-- ===================================================================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- =================================================================== -->
+    <!-- VIEW 0: BENTO GRID HOME HUB (ALL UNIFIED PLATFORMS IN ONE VIEW)     -->
+    <!-- =================================================================== -->
+    <section id="view-hub" class="flex flex-col gap-6">
+
+      <!-- Friendly Child & Teacher Greeting Banner -->
+      <div class="bento-card p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 adhd-dimmable">
+        <div class="flex items-start sm:items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl pill-amber flex items-center justify-center text-3xl shrink-0">
+            🌈
+          </div>
+          <div>
+            <h1 id="ui-hub-welcome" class="font-nunito font-black text-xl sm:text-2xl leading-snug">
+              Привет! Выбери книгу для чтения или нужный помощник
+            </h1>
+            <p id="ui-hub-desc" class="text-sm mt-1" style="color: var(--text-muted);">
+              11 мировых инклюзивных инструментов объединены в одном спокойном окне — без спешки и стресса.
+            </p>
+          </div>
+        </div>
+        <button onclick="openReaderWithBook('baikonur')" class="tactile-btn px-5 py-3 rounded-2xl btn-sage font-nunito font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 shrink-0">
+          <span>📖</span>
+          <span id="ui-hub-quick-read">Читать первую книгу</span>
+        </button>
+      </div>
+
+      <!-- TACTILE BENTO GRID (12-COLUMN RESPONSIVE) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- CELL 1 (FEATURED LARGE BENTO CARD - 7 COLS): ADAPTED BOOK LIBRARY -->
+        <div class="lg:col-span-7 bento-card p-5 sm:p-6 flex flex-col justify-between gap-4">
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-11 h-11 rounded-2xl pill-sage flex items-center justify-center text-2xl">📚</span>
+                <div>
+                  <h2 id="ui-cell1-title" class="font-nunito font-black text-lg sm:text-xl leading-tight">
+                    Адаптированная Библиотека Книг
+                  </h2>
+                  <p class="text-xs font-bold mt-0.5" style="color: var(--sage);">
+                    Bookshare • Learning Ally • Tar Heel Reader • Immersive Reader
+                  </p>
+                </div>
+              </div>
+              <button onclick="navigateView('library')" class="tactile-btn px-4 py-2 rounded-2xl pill-sage font-nunito font-extrabold text-xs sm:text-sm">
+                <span id="ui-cell1-all-btn">Вся библиотека →</span>
+              </button>
+            </div>
+
+            <p id="ui-cell1-desc" class="text-sm mb-4" style="color: var(--text-muted);">
+              Нажми на любую понравившуюся книгу: сайт прочитает её вслух как караоке, объяснит любое непонятное слово и разобьёт текст на слоги.
+            </p>
+
+            <!-- 4 Interactive Illustrated Book Covers directly inside the Featured Bento Cell -->
+            <div id="hub-books-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <!-- Populated dynamically by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN STACK (5 COLS): CELL 2 + CELL 3 -->
+        <div class="lg:col-span-5 flex flex-col gap-5">
+
+          <!-- CELL 2: AI LESSON ADAPTER "1 IN 4" -->
+          <div onclick="navigateView('adapter')" role="button" tabindex="0" class="bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="w-11 h-11 rounded-2xl pill-sky flex items-center justify-center text-2xl">✨</span>
+                <span class="px-3 py-1 rounded-full text-xs font-extrabold pill-sky">
+                  Diffit + MagicSchool + LittleLit
+                </span>
+              </div>
+              <h2 id="ui-cell2-title" class="font-nunito font-black text-lg sm:text-xl">
+                ИИ-Адаптер Уроков «1 в 4»
+              </h2>
+              <p id="ui-cell2-desc" class="text-sm mt-1 leading-relaxed" style="color: var(--text-muted);">
+                Вставьте параграф из школьного учебника — ИИ создаст лёгкий текст для дислексии/ЗПР, микро-шаги, карточки PECS и добрый тест.
+              </p>
+            </div>
+            <div class="flex items-center justify-between pt-2 border-t" style="border-color: var(--border-card);">
+              <span id="ui-cell2-cta" class="text-sm font-extrabold" style="color: var(--sky);">Открыть адаптер →</span>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-xl bento-soft">ҚАЗ / РУС</span>
+            </div>
+          </div>
+
+          <!-- CELL 3: SMART TASK BREAKER (GOBLIN TOOLS MAGIC TODO) -->
+          <div onclick="navigateView('todo')" role="button" tabindex="0" class="bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="w-11 h-11 rounded-2xl pill-amber flex items-center justify-center text-2xl">🪜</span>
+                <span class="px-3 py-1 rounded-full text-xs font-extrabold pill-amber">
+                  Goblin Tools • Magic ToDo
+                </span>
+              </div>
+              <h2 id="ui-cell3-title" class="font-nunito font-black text-lg sm:text-xl">
+                Умный Дробитель Задач
+              </h2>
+              <p id="ui-cell3-desc" class="text-sm mt-1 leading-relaxed" style="color: var(--text-muted);">
+                Помогает при СДВГ и тревожности: превращает большое задание («Сделать домашку», «Собрать портфель») в маленькие спокойные шаги.
+              </p>
+            </div>
+            <div class="flex items-center justify-between pt-2 border-t" style="border-color: var(--border-card);">
+              <span id="ui-cell3-cta" class="text-sm font-extrabold" style="color: var(--amber);">Разбить задачу на шаги →</span>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-xl bento-soft">🕊️ Без таймера</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTTOM ROW (6 COLS + 6 COLS): CELL 4 + CELL 5 -->
+        <!-- CELL 4: VISUAL SCHEDULE & SOCIAL STORY -->
+        <div onclick="navigateView('schedule')" role="button" tabindex="0" class="lg:col-span-6 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="w-11 h-11 rounded-2xl pill-plum flex items-center justify-center text-2xl">🗓️</span>
+              <span class="px-3 py-1 rounded-full text-xs font-extrabold pill-plum">
+                Glint + Boardmaker 7
+              </span>
+            </div>
+            <h2 id="ui-cell4-title" class="font-nunito font-black text-lg sm:text-xl">
+              Визуальный План и Социальная История
+            </h2>
+            <p id="ui-cell4-desc" class="text-sm mt-1 leading-relaxed" style="color: var(--text-muted);">
+              Понятное расписание «Сначала → Потом → Награда» с отметками выполнения и добрая иллюстрированная история о том, как просить помощь.
+            </p>
+          </div>
+          <div class="pt-2 border-t flex items-center justify-between" style="border-color: var(--border-card);">
+            <span id="ui-cell4-cta" class="text-sm font-extrabold" style="color: var(--plum);">Открыть план и историю →</span>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-xl bento-soft">РАС / Аутизм</span>
+          </div>
+        </div>
+
+        <!-- CELL 5: TALKING AAC PICTOGRAM BOARD -->
+        <div onclick="navigateView('aac')" role="button" tabindex="0" class="lg:col-span-6 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="w-11 h-11 rounded-2xl pill-sage flex items-center justify-center text-2xl">💬</span>
+              <span class="px-3 py-1 rounded-full text-xs font-extrabold pill-sage">
+                Cboard • Proloquo2Go
+              </span>
+            </div>
+            <h2 id="ui-cell5-title" class="font-nunito font-black text-lg sm:text-xl">
+              Говорящие Карточки AAC (Общение без слов)
+            </h2>
+            <p id="ui-cell5-desc" class="text-sm mt-1 leading-relaxed" style="color: var(--text-muted);">
+              Нажимай на крупные карточки-пиктограммы, чтобы собрать фразу («Я хочу читать книгу», «Мне нужен перерыв») и озвучить её голосом.
+            </p>
+          </div>
+          <div class="pt-2 border-t flex items-center justify-between" style="border-color: var(--border-card);">
+            <span id="ui-cell5-cta" class="text-sm font-extrabold" style="color: var(--sage);">Открыть карточки общения →</span>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-xl bento-soft">🔊 Голос</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW 1: FULL ADAPTED BOOK LIBRARY (BOOKSHELF + LEVEL FILTER)        -->
+    <!-- =================================================================== -->
+    <section id="view-library" class="hidden flex flex-col gap-6">
+      <div class="bento-card p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <span class="text-3xl">📚</span>
+            <h1 id="ui-lib-title" class="font-nunito font-black text-2xl">
+              Адаптированная Библиотека Книг
+            </h1>
+          </div>
+          <p id="ui-lib-sub" class="text-sm mt-1" style="color: var(--text-muted);">
+            Выбери книгу, которая тебе нравится! Внутри каждой книги есть озвучка-караоке, подсказки слов и упрощённый режим.
+          </p>
+        </div>
+        <button onclick="navigateView('hub')" class="tactile-btn px-4 py-2.5 rounded-2xl bento-soft font-nunito font-extrabold text-sm shrink-0">
+          <span id="ui-back-hub-1">← На главную</span>
+        </button>
+      </div>
+
+      <div id="full-library-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Populated dynamically by JS -->
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW 2: INTERACTIVE CHILD-FRIENDLY BOOK READER ("УМНЫЙ ПОМОЩНИК")    -->
+    <!-- =================================================================== -->
+    <section id="view-reader" class="hidden flex flex-col gap-5">
+
+      <!-- Top Reader Toolbar: Back to Library + Diffit Level + Immersive Controls -->
+      <div class="bento-card p-4 sm:p-5 flex flex-col gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b" style="border-color: var(--border-card);">
+          <button onclick="navigateView('library')" class="tactile-btn px-4 py-2 rounded-2xl bento-soft font-nunito font-extrabold text-sm flex items-center gap-2">
+            <span>←</span>
+            <span id="ui-reader-back">К выбору книг</span>
+          </button>
+
+          <!-- Diffit Text Simplification Toggle -->
+          <div class="bento-soft p-1.5 flex flex-wrap items-center gap-1.5" role="group" aria-label="Сложность текста">
+            <button id="btn-book-normal" onclick="setBookMode('normal')" class="tactile-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold">
+              📖 Обычный текст
+            </button>
+            <button id="btn-book-simple" onclick="setBookMode('simple')" class="tactile-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold">
+              ✨ Очень простой текст (лёгкое чтение)
+            </button>
+          </div>
+        </div>
+
+        <!-- Karaoke TTS + Reading Speed + Syllables + Reading Ruler + Font Size -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <!-- Read Aloud & Speed -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="btn-book-speak" onclick="toggleBookReadAloud()" class="tactile-btn px-5 py-2.5 rounded-2xl btn-sage font-nunito font-extrabold text-sm sm:text-base flex items-center gap-2 shadow-sm">
+              <span id="book-speak-icon">🔊</span>
+              <span id="ui-book-speak-lbl">Читать вслух</span>
+            </button>
+            <button id="btn-book-stop" onclick="stopAllSpeech()" class="tactile-btn px-3.5 py-2.5 rounded-2xl bento-soft font-bold text-sm hidden" aria-label="Стоп">
+              ⏹️
+            </button>
+
+            <!-- Speed Selector: 0.7x Медленно, 0.9x Спокойно, 1.1x Обычно -->
+            <div class="bento-soft p-1 flex items-center gap-1">
+              <button onclick="setBookSpeechRate(0.7)" id="rate-btn-0.7" class="px-3 py-1.5 rounded-xl text-xs font-extrabold">0.7x Медленно</button>
+              <button onclick="setBookSpeechRate(0.9)" id="rate-btn-0.9" class="px-3 py-1.5 rounded-xl text-xs font-extrabold">0.9x Спокойно</button>
+              <button onclick="setBookSpeechRate(1.1)" id="rate-btn-1.1" class="px-3 py-1.5 rounded-xl text-xs font-extrabold">1.1x Обычно</button>
+            </div>
+          </div>
+
+          <!-- Immersive Reader Visual Helpers -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="btn-book-syllables" onclick="toggleBookSyllables()" class="tactile-btn px-3.5 py-2 rounded-2xl bento-soft text-xs sm:text-sm font-extrabold flex items-center gap-1.5">
+              <span>🔤</span>
+              <span id="ui-book-syl-lbl">Сло-ги</span>
+            </button>
+
+            <button id="btn-book-ruler" onclick="toggleReadingRuler()" class="tactile-btn px-3.5 py-2 rounded-2xl bento-soft text-xs sm:text-sm font-extrabold flex items-center gap-1.5">
+              <span>📏</span>
+              <span id="ui-book-ruler-lbl">Линейка чтения</span>
+            </button>
+
+            <div class="bento-soft p-1 flex items-center gap-1">
+              <button onclick="adjustReaderSize(-2)" class="tactile-btn px-3 py-1 rounded-xl text-xs font-black" aria-label="Уменьшить шрифт">A-</button>
+              <span id="ui-reader-size-badge" class="text-xs font-bold px-1" style="color: var(--text-muted);">20px</span>
+              <button onclick="adjustReaderSize(2)" class="tactile-btn px-3 py-1 rounded-xl text-sm font-black" aria-label="Увеличить шрифт">A+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Book Page Canvas + Interactive Word Helper Sidebar -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+        <!-- Left / Center: Illustrated Book Page (8 cols) -->
+        <article class="lg:col-span-8 bento-card p-5 sm:p-8 flex flex-col gap-5">
+          <!-- Book Header & Page Indicator -->
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span id="reader-book-tag" class="px-3.5 py-1 rounded-full text-xs font-extrabold pill-sage">
+              Космос и наука • Уровень 1
+            </span>
+            <span id="reader-page-counter" class="px-3.5 py-1 rounded-full text-xs font-extrabold bento-soft">
+              Страница 1 из 3
+            </span>
+          </div>
+
+          <h2 id="reader-book-title" class="font-nunito font-black text-2xl sm:text-3xl leading-tight">
+            Путешествие к звёздам с Байконура
+          </h2>
+
+          <!-- Custom SVG Page Illustration -->
+          <div id="reader-book-illustration" class="w-full rounded-3xl overflow-hidden border-2 p-4 flex items-center justify-center" style="background-color: var(--bg-soft); border-color: var(--border-card);">
+            <!-- Populated dynamically -->
+          </div>
+
+          <!-- Reading Ruler Manual Stepper (when ruler is active) -->
+          <div id="ruler-nav-bar" class="hidden flex items-center justify-between gap-2 px-4 py-2 rounded-2xl pill-amber">
+            <span id="ui-ruler-hint" class="text-xs sm:text-sm font-extrabold">
+              📏 Линейка чтения: нажми на любую строку или используй стрелки
+            </span>
+            <div class="flex items-center gap-1.5">
+              <button onclick="stepReadingRuler(-1)" class="tactile-btn px-3 py-1 rounded-xl bg-white/80 text-slate-900 font-black text-xs">↑</button>
+              <button onclick="stepReadingRuler(1)" class="tactile-btn px-3 py-1 rounded-xl bg-white/80 text-slate-900 font-black text-xs">↓</button>
+            </div>
+          </div>
+
+          <!-- Interactive Clickable & Karaoke-Highlighted Page Text -->
+          <div id="reader-book-text" class="reader-text space-y-3">
+            <!-- Populated dynamically -->
+          </div>
+
+          <!-- Page Turn Controls -->
+          <div class="flex items-center justify-between gap-3 pt-4 border-t" style="border-color: var(--border-card);">
+            <button id="btn-page-prev" onclick="turnBookPage(-1)" class="tactile-btn px-5 py-3 rounded-2xl bento-soft font-nunito font-extrabold text-sm sm:text-base">
+              ← Назад
+            </button>
+            <div id="page-dots-indicator" class="flex items-center gap-2">
+              <!-- Dots -->
+            </div>
+            <button id="btn-page-next" onclick="turnBookPage(1)" class="tactile-btn px-6 py-3 rounded-2xl btn-sage font-nunito font-extrabold text-sm sm:text-base">
+              Дальше →
+            </button>
+          </div>
+        </article>
+
+        <!-- Right: Interactive Word Helper Bubble ("Нажми на любое слово") (4 cols) -->
+        <aside class="lg:col-span-4 bento-card p-5 sm:p-6 flex flex-col gap-4 sticky top-36">
+          <div class="flex items-center gap-2.5">
+            <span class="w-10 h-10 rounded-2xl pill-sky flex items-center justify-center text-xl">🔍</span>
+            <div>
+              <h3 id="ui-word-helper-title" class="font-nunito font-black text-lg leading-tight">
+                Помощник по словам
+              </h3>
+              <p id="ui-word-helper-sub" class="text-xs" style="color: var(--text-muted);">
+                Нажми на любое слово в книге!
+              </p>
+            </div>
+          </div>
+
+          <div id="word-helper-card" class="bento-soft p-5 flex flex-col gap-3">
+            <!-- Default prompt or active clicked word details -->
+          </div>
+        </aside>
+      </div>
+
+      <!-- Child Support Bar at the Bottom of the Reader -->
+      <div class="bento-card p-4 sm:p-5">
+        <div class="text-xs font-extrabold uppercase tracking-wider mb-3" style="color: var(--text-muted);" id="ui-child-support-lbl">
+          Быстрая помощь во время чтения:
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <button onclick="toggleBookReadAloud()" class="tactile-btn p-3.5 rounded-2xl pill-sage font-nunito font-extrabold text-sm flex items-center justify-center gap-2 border-2" style="border-color: var(--sage);">
+            <span>🔊</span>
+            <span id="ui-sup-read">Прочитай страницу</span>
+          </button>
+
+          <button onclick="setBookMode(state.bookMode === 'normal' ? 'simple' : 'normal')" class="tactile-btn p-3.5 rounded-2xl pill-sky font-nunito font-extrabold text-sm flex items-center justify-center gap-2 border-2" style="border-color: var(--sky);">
+            <span>✨</span>
+            <span id="ui-sup-simple">Сделай проще</span>
+          </button>
+
+          <button onclick="toggleBookSyllables()" class="tactile-btn p-3.5 rounded-2xl pill-plum font-nunito font-extrabold text-sm flex items-center justify-center gap-2 border-2" style="border-color: var(--plum);">
+            <span>🔤</span>
+            <span id="ui-sup-syllables">Разбей на слоги</span>
+          </button>
+
+          <button onclick="openCalmBreakModal()" class="tactile-btn p-3.5 rounded-2xl pill-amber font-nunito font-extrabold text-sm flex items-center justify-center gap-2 border-2" style="border-color: var(--amber);">
+            <span>🧘</span>
+            <span id="ui-sup-break">Мне нужен перерыв</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW 3: AI LESSON ADAPTER "1 IN 4" (DIFFIT + MAGICSCHOOL + LITTLELIT)-->
+    <!-- =================================================================== -->
+    <section id="view-adapter" class="hidden flex flex-col gap-5">
+      <div class="bento-card p-5 sm:p-6 flex flex-col gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="w-12 h-12 rounded-2xl pill-sky flex items-center justify-center text-2xl">✨</span>
+            <div>
+              <h1 id="ui-adp-title" class="font-nunito font-black text-xl sm:text-2xl">
+                ИИ-Адаптер Уроков «1 в 4»
+              </h1>
+              <p id="ui-adp-sub" class="text-xs sm:text-sm" style="color: var(--text-muted);">
+                Diffit + MagicSchool AI + LittleLit AI: превращает сложный параграф в 4 понятных формата
+              </p>
+            </div>
+          </div>
+          <button onclick="navigateView('hub')" class="tactile-btn px-4 py-2 rounded-2xl bento-soft font-nunito font-extrabold text-sm">
+            <span id="ui-back-hub-2">← На главную</span>
+          </button>
+        </div>
+
+        <!-- Ready Presets -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="ui-adp-presets-lbl" class="text-xs font-extrabold" style="color: var(--text-muted);">Готовые темы:</span>
+          <button onclick="loadAdapterPreset('water')" class="tactile-btn px-4 py-2 rounded-2xl pill-sky text-xs sm:text-sm font-extrabold">
+            💧 Круговорот воды в природе
+          </button>
+          <button onclick="loadAdapterPreset('silk')" class="tactile-btn px-4 py-2 rounded-2xl pill-sage text-xs sm:text-sm font-extrabold">
+            🐪 Великий Шёлковый путь
+          </button>
+        </div>
+
+        <!-- Custom Input Form -->
+        <div class="flex flex-col gap-3">
+          <input id="adapter-input-title" type="text" class="w-full px-4 py-3 rounded-2xl bento-soft font-bold text-sm focus:outline-none" placeholder="Тема урока..." />
+          <textarea id="adapter-input-text" rows="3" class="w-full px-4 py-3 rounded-2xl bento-soft text-sm leading-relaxed focus:outline-none" placeholder="Вставьте текст из учебника..."></textarea>
+          <div class="flex justify-end">
+            <button id="btn-generate-4in1" onclick="runLessonAdapterAI()" class="tactile-btn px-6 py-3 rounded-2xl btn-sky font-nunito font-extrabold text-sm sm:text-base flex items-center gap-2">
+              <span id="adapter-spinner" class="hidden animate-spin">⏳</span>
+              <span id="ui-adp-run-btn">Адаптировать в 4 формата (ИИ)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Adapted Output Cards in Bento Grid -->
+      <div id="adapter-output-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- Populated dynamically by JS -->
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW 4: SMART TASK BREAKER (GOBLIN TOOLS — MAGIC TODO)              -->
+    <!-- =================================================================== -->
+    <section id="view-todo" class="hidden flex flex-col gap-5">
+      <div class="max-w-4xl w-full mx-auto flex flex-col gap-5">
+        <div class="bento-card p-5 sm:p-6 flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="w-12 h-12 rounded-2xl pill-amber flex items-center justify-center text-2xl">🪜</span>
+              <div>
+                <h1 id="ui-todo-title" class="font-nunito font-black text-xl sm:text-2xl">
+                  Умный Дробитель Задач (Magic ToDo)
+                </h1>
+                <p id="ui-todo-sub" class="text-xs sm:text-sm" style="color: var(--text-muted);">
+                  Goblin Tools: разбивает большое дело на крошечные, понятные шаги без стресса
+                </p>
+              </div>
+            </div>
+            <button onclick="navigateView('hub')" class="tactile-btn px-4 py-2 rounded-2xl bento-soft font-nunito font-extrabold text-sm">
+              <span id="ui-back-hub-3">← На главную</span>
+            </button>
+          </div>
+
+          <!-- Preset Tasks -->
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="ui-todo-presets-lbl" class="text-xs font-extrabold" style="color: var(--text-muted);">Примеры дел:</span>
+            <button onclick="selectTodoPreset('math')" class="tactile-btn px-4 py-2 rounded-2xl pill-amber text-xs sm:text-sm font-extrabold">
+              📐 Сделать домашку по математике
+            </button>
+            <button onclick="selectTodoPreset('bag')" class="tactile-btn px-4 py-2 rounded-2xl pill-sage text-xs sm:text-sm font-extrabold">
+              🎒 Собрать портфель в школу
+            </button>
+            <button onclick="selectTodoPreset('poem')" class="tactile-btn px-4 py-2 rounded-2xl pill-sky text-xs sm:text-sm font-extrabold">
+              📝 Выучить стихотворение
+            </button>
+          </div>
+
+          <!-- Custom Task Input + Help Level Selector (1, 2, 3 Stars) -->
+          <div class="flex flex-col sm:flex-row gap-3">
+            <input id="todo-custom-input" type="text" class="flex-1 px-4 py-3 rounded-2xl bento-soft font-bold text-sm focus:outline-none" placeholder="Напиши своё задание..." />
+            <div class="bento-soft p-1.5 flex items-center gap-1 shrink-0" title="Уровень помощи">
+              <span id="ui-todo-spice-lbl" class="text-xs font-extrabold px-2" style="color: var(--text-muted);">Помощь:</span>
+              <button onclick="setTodoLevel(1)" id="todo-lvl-1" class="px-3 py-1.5 rounded-xl text-xs font-extrabold">⭐</button>
+              <button onclick="setTodoLevel(2)" id="todo-lvl-2" class="px-3 py-1.5 rounded-xl text-xs font-extrabold">⭐⭐</button>
+              <button onclick="setTodoLevel(3)" id="todo-lvl-3" class="px-3 py-1.5 rounded-xl text-xs font-extrabold">⭐⭐⭐</button>
+            </div>
+            <button id="btn-break-task" onclick="runTaskBreakerAI()" class="tactile-btn px-5 py-3 rounded-2xl btn-amber font-nunito font-extrabold text-sm flex items-center justify-center gap-2 shrink-0">
+              <span id="todo-spinner" class="hidden animate-spin">⏳</span>
+              <span id="ui-todo-run-btn">Разбить на шаги</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Checkable Micro-Steps Checklist Card -->
+        <div class="bento-card p-5 sm:p-7 flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="todo-active-task-title" class="font-nunito font-black text-xl">
+              Сделать домашку по математике
+            </h2>
+            <span id="todo-progress-text" class="px-3 py-1 rounded-full text-xs font-extrabold pill-sage">
+              Выполнено: 0 из 5
+            </span>
+          </div>
+
+          <!-- Calm Progress Bar -->
+          <div class="w-full h-3.5 rounded-full bento-soft overflow-hidden">
+            <div id="todo-progress-bar" class="h-full btn-sage transition-all duration-300 rounded-full" style="width: 0%;"></div>
+          </div>
+
+          <div id="todo-steps-list" class="space-y-3 mt-1">
+            <!-- Populated dynamically by JS -->
+          </div>
+
+          <!-- Gentle Celebration Banner -->
+          <div id="todo-celebration" class="hidden p-5 rounded-3xl pill-sage border-2 text-center flex flex-col items-center gap-2" style="border-color: var(--sage);">
+            <span class="text-4xl">🌟</span>
+            <div id="ui-todo-done-title" class="font-nunito font-black text-lg">Молодец! Все шаги выполнены!</div>
+            <p id="ui-todo-done-sub" class="text-sm">Ты справился спокойно и без спешки.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW 5: VISUAL SCHEDULE & SOCIAL STORY (GLINT + BOARDMAKER 7)       -->
+    <!-- =================================================================== -->
+    <section id="view-schedule" class="hidden flex flex-col gap-5">
+      <div class="bento-card p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <span class="w-12 h-12 rounded-2xl pill-plum flex items-center justify-center text-2xl">🗓️</span>
+          <div>
+            <h1 id="ui-sch-title" class="font-nunito font-black text-xl sm:text-2xl">
+              Визуальный План и Социальная История
+            </h1>
+            <p id="ui-sch-sub" class="text-xs sm:text-sm" style="color: var(--text-muted);">
+              Glint + Boardmaker 7: предсказуемый порядок действий и спокойный настрой
+            </p>
+          </div>
+        </div>
+        <button onclick="navigateView('hub')" class="tactile-btn px-4 py-2 rounded-2xl bento-soft font-nunito font-extrabold text-sm">
+          <span id="ui-back-hub-4">← На главную</span>
+        </button>
+      </div>
+
+      <!-- Visual Schedule: Сначала -> Потом -> Награда -->
+      <div class="bento-card p-5 sm:p-6 flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-2">
+          <h2 id="ui-sch-board-title" class="font-nunito font-black text-lg sm:text-xl">
+            Мой план занятия: Сначала → Потом → Награда
+          </h2>
+          <span id="ui-sch-tap-hint" class="text-xs font-bold" style="color: var(--text-muted);">Нажимай на карточки, когда выполнишь</span>
+        </div>
+
+        <div id="visual-schedule-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+
+      <!-- Illustrated Social Story -->
+      <div class="bento-card p-5 sm:p-7 flex flex-col gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="ui-soc-title" class="font-nunito font-black text-lg sm:text-xl">
+            Социальная история: «Как я читаю книгу и прошу помощь»
+          </h2>
+          <button onclick="speakSocialStoryText()" class="tactile-btn px-4 py-2 rounded-2xl pill-plum font-nunito font-extrabold text-sm flex items-center gap-2">
+            <span>🔊</span>
+            <span id="ui-soc-listen">Послушать историю</span>
+          </button>
+        </div>
+
+        <div id="social-story-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW 6: TALKING AAC PICTOGRAM BOARD (CBOARD / PROLOQUO2GO)          -->
+    <!-- =================================================================== -->
+    <section id="view-aac" class="hidden flex flex-col gap-5">
+      <div class="bento-card p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <span class="w-12 h-12 rounded-2xl pill-sage flex items-center justify-center text-2xl">💬</span>
+          <div>
+            <h1 id="ui-aac-page-title" class="font-nunito font-black text-xl sm:text-2xl">
+              Говорящие Карточки AAC (Общение без слов)
+            </h1>
+            <p id="ui-aac-page-sub" class="text-xs sm:text-sm" style="color: var(--text-muted);">
+              Cboard / Proloquo2Go: нажимай на карточки, чтобы собрать фразу и озвучить её
+            </p>
+          </div>
+        </div>
+        <button onclick="navigateView('hub')" class="tactile-btn px-4 py-2 rounded-2xl bento-soft font-nunito font-extrabold text-sm">
+          <span id="ui-back-hub-5">← На главную</span>
+        </button>
+      </div>
+
+      <!-- Top Sentence Strip ("Моя фраза") -->
+      <div class="bento-card p-4 sm:p-6 flex flex-col gap-3 border-2" style="border-color: var(--sage);">
+        <div class="flex items-center justify-between">
+          <span id="ui-aac-strip-lbl" class="text-xs font-extrabold uppercase tracking-wider" style="color: var(--sage);">
+            Моя фраза:
+          </span>
+          <div class="flex items-center gap-2">
+            <button onclick="backspaceAAC()" class="tactile-btn px-3.5 py-2 rounded-xl bento-soft text-xs sm:text-sm font-extrabold">
+              ⌫ <span id="ui-aac-del">Убрать</span>
+            </button>
+            <button onclick="clearAAC()" class="tactile-btn px-3.5 py-2 rounded-xl bento-soft text-xs sm:text-sm font-extrabold">
+              🗑️ <span id="ui-aac-clear">Очистить</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div id="aac-sentence-strip" class="flex-1 min-h-[74px] bento-soft p-3 flex flex-wrap items-center gap-2">
+            <!-- Selected AAC pictograms appear here -->
+          </div>
+          <button onclick="speakAACSentence()" class="tactile-btn px-6 py-4 rounded-2xl btn-sage font-nunito font-black text-base flex items-center justify-center gap-2 shrink-0 shadow-sm">
+            <span>🔊</span>
+            <span id="ui-aac-speak-btn">Озвучить фразу</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Large Tactile Pictogram Cards Grid -->
+      <div id="aac-cards-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <!-- Populated dynamically by JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- CALM BREATHING BREAK MODAL ("🧘 ПЕРЕРЫВ")                            -->
+  <!-- ===================================================================== -->
+  <div id="calm-break-modal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div class="bento-card max-w-md w-full p-7 text-center flex flex-col items-center gap-5 shadow-xl">
+      <div class="w-32 h-32 rounded-full pill-sage border-4 flex flex-col items-center justify-center breathe-bubble" style="border-color: var(--sage);">
+        <span class="text-4xl">🌿</span>
+        <span id="breathe-phase-text" class="font-nunito font-black text-sm mt-1">Вдох...</span>
+      </div>
+      <div>
+        <h3 id="ui-modal-break-title" class="font-nunito font-black text-2xl">
+          Спокойный перерыв
+        </h3>
+        <p id="ui-modal-break-desc" class="text-sm mt-2 leading-relaxed" style="color: var(--text-muted);">
+          Посмотри на зелёный круг. Медленно вдохни носом... и плавно выдохни. Отдыхай столько, сколько нужно.
+        </p>
+      </div>
+      <button onclick="closeCalmBreakModal()" id="ui-modal-break-close" class="tactile-btn w-full py-3.5 rounded-2xl btn-sage font-nunito font-extrabold text-base">
+        Я отдохнул(а), продолжить
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- GENTLE STATUS TOAST (NO ALERT() USED)                                 -->
+  <!-- ===================================================================== -->
+  <div id="status-toast" aria-live="polite" class="fixed bottom-5 right-5 z-50 max-w-sm bento-card px-4 py-3.5 shadow-lg flex items-center gap-3 transition-all duration-200 opacity-0 pointer-events-none translate-y-2" style="border-color: var(--sage);">
+    <span id="status-toast-icon" class="text-xl shrink-0">✨</span>
+    <span id="status-toast-text" class="text-sm font-extrabold">Готово</span>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- ===================================================================== -->
+  <!-- DATA & INTERACTIVE ENGINE (split from the single-file prototype)     -->
+  <!-- ===================================================================== -->
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

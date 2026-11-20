@@ -1,0 +1,19 @@
+{
+  "name": "qamqor-bilim",
+  "version": "1.0.0",
+  "description": "Qamqor Bilim — единая инклюзивная платформа: библиотека с TTS-караоке, ИИ-адаптер уроков «1 в 4», дробитель задач, визуальный план и AAC-карточки (RU/KK)",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0"
+  }
+}
