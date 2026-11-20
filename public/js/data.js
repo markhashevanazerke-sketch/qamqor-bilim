@@ -33,6 +33,16 @@
         },
         profilePickerTitle: "Ребёнок и режим",
         profilePickerHint: "Каждый режим настраивает интерфейс под ребёнка",
+        sidebarProfilesLbl: "Режим ребёнка",
+        sidebarNavLbl: "Разделы",
+        navShort: {
+          hub: "Главная",
+          library: "Книги",
+          adapter: "ИИ-Уроки",
+          todo: "Дробилка",
+          schedule: "План",
+          aac: "AAC"
+        },
         nav: {
           hub: "🏠 Все инструменты",
           library: "📚 Библиотека",
@@ -148,6 +158,16 @@
         },
         profilePickerTitle: "Бала және режим",
         profilePickerHint: "Әр режим қосымшаны балаға бейімдейді",
+        sidebarProfilesLbl: "Баланың режимі",
+        sidebarNavLbl: "Бөлімдер",
+        navShort: {
+          hub: "Басты",
+          library: "Кітапхана",
+          adapter: "ЖИ-Сабақ",
+          todo: "Бөлу",
+          schedule: "Жоспар",
+          aac: "AAC"
+        },
         nav: {
           hub: "🏠 Барлық құралдар",
           library: "📚 Кітапхана",

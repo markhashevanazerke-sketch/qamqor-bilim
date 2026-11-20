@@ -15,79 +15,112 @@
 
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body class="profile-standard min-h-screen flex flex-col">
+<body class="profile-standard min-h-screen flex">
 
   <!-- ===================================================================== -->
-  <!-- GLOBAL STICKY TOP ACCESSIBILITY & NAVIGATION HEADER                   -->
+  <!-- DESKTOP SIDEBAR (PC-app layout): бренд, режимы ребёнка, разделы      -->
+  <!-- ===================================================================== -->
+  <aside class="hidden lg:flex flex-col w-[264px] shrink-0 sticky top-0 h-dvh overflow-y-auto no-scrollbar border-r-2" style="background-color: var(--bg-card); border-color: var(--border-card);" aria-label="Боковая панель">
+    <div class="flex flex-col flex-1 p-4 gap-4">
+      <!-- Brand -->
+      <button onclick="navigateView('hub')" class="flex items-center gap-3 text-left group min-w-0">
+        <div class="w-11 h-11 rounded-2xl btn-sage flex items-center justify-center shrink-0 shadow-sm">
+          <svg class="w-6 h-6" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <path d="M14 4L16.4 9.6L22 12L16.4 14.4L14 20L11.6 14.4L6 12L11.6 9.6L14 4Z" fill="currentColor"/>
+            <path d="M6 22C9.5 19.8 12 19.8 14 21.5C16 19.8 18.5 19.8 22 22" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <div class="font-nunito font-black text-lg tracking-tight leading-none" style="color: var(--text-main);">Qamqor Bilim</div>
+          <span id="ui-brand-badge" class="inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold pill-sage">
+            Единая инклюзивная платформа
+          </span>
+        </div>
+      </button>
+
+      <div class="border-t-2" style="border-color: var(--border-card);"></div>
+
+      <!-- Режимы ребёнка -->
+      <div class="flex flex-col gap-1.5">
+        <p id="ui-sidebar-profiles-lbl" class="text-[11px] font-extrabold uppercase tracking-wider px-1.5" style="color: var(--text-muted);">Режим ребёнка</p>
+        <div id="sidebar-profiles" class="flex flex-col gap-1.5">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+
+      <!-- Разделы -->
+      <div class="flex flex-col gap-1.5">
+        <p id="ui-sidebar-nav-lbl" class="text-[11px] font-extrabold uppercase tracking-wider px-1.5" style="color: var(--text-muted);">Разделы</p>
+        <div id="sidebar-nav" class="flex flex-col gap-1.5">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+
+      <div class="mt-auto flex flex-col gap-3 pt-4">
+        <div class="bento-soft p-1 flex items-center" role="group" aria-label="Язык интерфейса / Тіл">
+          <button id="lang-btn-ru-sb" onclick="setLanguage('ru')" class="tactile-btn flex-1 py-1.5 rounded-xl text-xs font-extrabold text-center">
+            РУС
+          </button>
+          <button id="lang-btn-kk-sb" onclick="setLanguage('kk')" class="tactile-btn flex-1 py-1.5 rounded-xl text-xs font-extrabold text-center">
+            ҚАЗ
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex-1 min-w-0 flex flex-col min-h-screen">
+
+  <!-- ===================================================================== -->
+  <!-- Тонкий sticky-хедер: бренд (мобайл) / заголовок раздела (ПК) + кнопки -->
   <!-- ===================================================================== -->
   <header class="sticky top-0 z-40 border-b-2" style="background-color: var(--bg-card); border-color: var(--border-card);">
-    <div class="max-w-7xl mx-auto px-3.5 sm:px-6 py-2.5 sm:py-3 flex flex-col gap-2 sm:gap-2.5">
+    <div class="max-w-7xl mx-auto px-3.5 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2">
 
-      <!-- Row 1: Brand Logo + Language Switcher (РУС | ҚАЗ) + Calm Break Button -->
-      <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <!-- Brand -->
-        <button onclick="navigateView('hub')" class="flex items-center gap-2.5 sm:gap-3 text-left group focus:outline-none min-w-0">
-          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl btn-sage flex items-center justify-center shrink-0 shadow-sm">
-            <svg class="w-5 h-5 sm:w-7 sm:h-7" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      <!-- Мобайл: бренд (на ПК — заголовок раздела) -->
+      <div class="flex items-center gap-2.5 min-w-0 shrink-0">
+        <button onclick="navigateView('hub')" class="lg:hidden flex items-center gap-2.5 text-left min-w-0">
+          <div class="w-10 h-10 rounded-xl btn-sage flex items-center justify-center shrink-0 shadow-sm">
+            <svg class="w-5 h-5" viewBox="0 0 28 28" fill="none" aria-hidden="true">
               <path d="M14 4L16.4 9.6L22 12L16.4 14.4L14 20L11.6 14.4L6 12L11.6 9.6L14 4Z" fill="currentColor"/>
               <path d="M6 22C9.5 19.8 12 19.8 14 21.5C16 19.8 18.5 19.8 22 22" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
             </svg>
           </div>
-          <div class="min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-nunito font-black text-lg sm:text-xl md:text-2xl tracking-tight leading-none" style="color: var(--text-main);">
-                Qamqor Bilim
-              </span>
-              <span id="ui-brand-badge" class="hidden md:inline-block px-2.5 py-0.5 rounded-full text-xs font-extrabold pill-sage">
-                Единая инклюзивная платформа
-              </span>
-            </div>
-            <p id="ui-brand-sub" class="hidden sm:block text-xs sm:text-sm mt-1 truncate" style="color: var(--text-muted);">
-              Библиотека, ИИ-адаптер, Дробитель задач, План и Карточки AAC
-            </p>
-          </div>
+          <span class="font-nunito font-black text-lg tracking-tight leading-none hidden sm:inline" style="color: var(--text-main);">
+            Qamqor Bilim
+          </span>
         </button>
-
-        <!-- Right Controls: Language Switcher & Calm Break -->
-        <div class="flex items-center gap-2 sm:gap-2.5">
-          <!-- Seamless РУС | ҚАЗ Toggle -->
-          <div class="bento-soft p-1 flex items-center" role="group" aria-label="Язык интерфейса / Тіл">
-            <button id="lang-btn-ru" onclick="setLanguage('ru')" class="tactile-btn px-3 sm:px-4 py-1.5 rounded-2xl text-sm font-extrabold">
-              РУС
-            </button>
-            <button id="lang-btn-kk" onclick="setLanguage('kk')" class="tactile-btn px-3 sm:px-4 py-1.5 rounded-2xl text-sm font-extrabold">
-              ҚАЗ
-            </button>
-          </div>
-
-          <!-- Always-Accessible Calm Break Button -->
-          <button onclick="openCalmBreakModal()" class="tactile-btn px-3 sm:px-4 py-2.5 rounded-2xl pill-amber border-2 font-nunito font-extrabold text-sm flex items-center justify-center gap-2" style="border-color: var(--amber);" aria-label="Спокойный перерыв">
-            <svg class="qi-icon w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10z"/>
-              <path d="M2 21c0-3 1.9-5.4 5.1-6C9.5 14.5 12 13 13 12"/>
-            </svg>
-            <span id="ui-break-btn" class="hidden sm:inline">Перерыв</span>
-          </button>
-        </div>
+        <h1 id="ui-view-title" class="hidden lg:block font-nunito font-black text-xl tracking-tight truncate">
+          Все инструменты
+        </h1>
       </div>
 
-      <!-- Row 2: Режим ребёнка (слева) + Bento Navigation — одна линия на всех экранах -->
-      <div class="flex flex-row items-center justify-between gap-2 lg:gap-4 pt-2 lg:pt-2.5 border-t" style="border-color: var(--border-card);">
-        <div class="flex items-center gap-2 shrink-0">
-          <!-- Мобайл: компактная кнопка режима слева, открывает шторку со всеми 5 режимами -->
-          <button id="profile-picker-btn" onclick="openProfilePicker()" class="lg:hidden tactile-btn px-3 py-2 rounded-2xl bento-soft border-2 border-transparent font-extrabold flex items-center gap-1.5 shrink-0 min-w-0" aria-haspopup="dialog" aria-label="Режим ребёнка">
-            <span id="profile-picker-icon" class="shrink-0 flex items-center"></span>
-            <span id="profile-picker-label" class="text-xs sm:text-sm truncate max-w-28">Стандарт</span>
-            <span id="profile-picker-chevron" class="shrink-0 flex items-center opacity-70"></span>
+      <!-- Правый блок: режим ребёнка (мобайл) + язык (мобайл) + перерыв -->
+      <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+        <!-- Мобайл: компактная кнопка режима, открывает шторку со всеми 5 режимами -->
+        <button id="profile-picker-btn" onclick="openProfilePicker()" class="lg:hidden tactile-btn px-1.5 sm:px-2.5 py-2 rounded-2xl bento-soft border-2 border-transparent font-extrabold flex items-center gap-1.5 shrink-0" aria-haspopup="dialog" aria-label="Режим ребёнка">
+          <span id="profile-picker-icon" class="shrink-0 flex items-center"></span>
+          <span id="profile-picker-label" class="text-[11px] sm:text-sm truncate max-w-20 sm:max-w-24">Стандарт</span>
+          <span id="profile-picker-chevron" class="shrink-0 flex items-center opacity-70"></span>
+        </button>
+        <!-- Мобайл: seamless РУС | ҚАЗ -->
+        <div class="lg:hidden bento-soft p-0.5 sm:p-1 flex items-center" role="group" aria-label="Язык интерфейса / Тіл">
+          <button id="lang-btn-ru" onclick="setLanguage('ru')" class="tactile-btn px-1.5 sm:px-2.5 py-1.5 rounded-2xl text-[11px] sm:text-xs font-extrabold">
+            РУС
           </button>
-          <!-- Десктоп: 5 пилюль режимов -->
-          <div class="hidden lg:flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0" id="profile-selector-bar">
-            <!-- Populated dynamically by JS -->
-          </div>
+          <button id="lang-btn-kk" onclick="setLanguage('kk')" class="tactile-btn px-1.5 sm:px-2.5 py-1.5 rounded-2xl text-[11px] sm:text-xs font-extrabold">
+            ҚАЗ
+          </button>
         </div>
-        <nav id="top-nav-pills" class="flex flex-1 lg:flex-initial min-w-0 items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 lg:pt-0" aria-label="Разделы платформы">
-          <!-- Populated dynamically by JS -->
-        </nav>
+
+        <!-- Always-Accessible Calm Break Button -->
+        <button onclick="openCalmBreakModal()" class="tactile-btn px-2.5 sm:px-4 py-2 rounded-2xl pill-amber border-2 font-nunito font-extrabold text-sm flex items-center justify-center gap-2" style="border-color: var(--amber);" aria-label="Спокойный перерыв">
+          <svg class="qi-icon w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10z"/>
+            <path d="M2 21c0-3 1.9-5.4 5.1-6C9.5 14.5 12 13 13 12"/>
+          </svg>
+          <span id="ui-break-btn" class="hidden sm:inline">Перерыв</span>
+        </button>
       </div>
     </div>
   </header>
@@ -753,6 +786,16 @@
       <span>Сделано спокойно, с заботой 🤍</span>
     </div>
   </footer>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MOBILE BOTTOM TAB BAR (навигация мобильного приложения)               -->
+  <!-- ===================================================================== -->
+  <nav id="bottom-tab-bar" class="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t-2" style="background-color: var(--bg-card); border-color: var(--border-card); padding-bottom: env(safe-area-inset-bottom);" aria-label="Быстрая навигация">
+    <div id="bottom-tab-grid" class="grid grid-cols-6 px-1 pt-1.5 pb-1.5">
+      <!-- Populated dynamically by JS -->
+    </div>
+  </nav>
 
   <!-- ===================================================================== -->
   <!-- CALM BREATHING BREAK MODAL ("🧘 ПЕРЕРЫВ")                            -->

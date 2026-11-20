@@ -430,9 +430,14 @@ header.header-scrolled {
   }
 }
 
-/* Подвал: safe-area снизу */
+/* Подвал: safe-area снизу + запас под фиксированный таб-бар на мобайле */
 footer.site-footer {
   padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+}
+@media (max-width: 1023px) {
+  footer.site-footer {
+    margin-bottom: calc(4.25rem + env(safe-area-inset-bottom));
+  }
 }
 
 /* Уважение к prefers-reduced-motion (кроме дыхательного круга — его суть) */

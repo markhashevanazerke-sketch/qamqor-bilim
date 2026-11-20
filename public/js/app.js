@@ -650,26 +650,39 @@
     function renderHeaderAndNav() {
       const t = UI_STRINGS[state.lang];
       document.getElementById("ui-brand-badge").textContent = t.brandBadge;
-      document.getElementById("ui-brand-sub").textContent = t.brandSub;
       document.getElementById("ui-break-btn").textContent = t.breakBtn;
 
-      // Language Switcher Buttons
-      const btnRu = document.getElementById("lang-btn-ru");
-      const btnKk = document.getElementById("lang-btn-kk");
-      btnRu.className = `tactile-btn px-3 sm:px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "ru" ? "btn-sage shadow-sm" : "opacity-75"}`;
-      btnKk.className = `tactile-btn px-3 sm:px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "kk" ? "btn-sage shadow-sm" : "opacity-75"}`;
+      // Заголовок раздела в топбаре (ПК)
+      document.getElementById("ui-view-title").textContent =
+        t.nav[state.view === "reader" ? "library" : state.view] || t.nav.hub;
 
-      // Profile Selector Pills (десктоп: 5 пилюль слева)
-      const profBar = document.getElementById("profile-selector-bar");
+      // Подписи секций сайдбара
+      document.getElementById("ui-sidebar-profiles-lbl").textContent = t.sidebarProfilesLbl;
+      document.getElementById("ui-sidebar-nav-lbl").textContent = t.sidebarNavLbl;
+
+      // Language Switcher Buttons (мобайл-хедер + сайдбар)
+      const mRu = document.getElementById("lang-btn-ru");
+      const mKk = document.getElementById("lang-btn-kk");
+      if (mRu) mRu.className = `tactile-btn px-1.5 sm:px-2.5 py-1.5 rounded-2xl text-[11px] sm:text-xs font-extrabold ${state.lang === "ru" ? "btn-sage shadow-sm" : "opacity-75"}`;
+      if (mKk) mKk.className = `tactile-btn px-1.5 sm:px-2.5 py-1.5 rounded-2xl text-[11px] sm:text-xs font-extrabold ${state.lang === "kk" ? "btn-sage shadow-sm" : "opacity-75"}`;
+      const sRu = document.getElementById("lang-btn-ru-sb");
+      const sKk = document.getElementById("lang-btn-kk-sb");
+      if (sRu) sRu.className = `tactile-btn flex-1 py-1.5 rounded-xl text-xs font-extrabold text-center ${state.lang === "ru" ? "btn-sage shadow-sm" : "opacity-75"}`;
+      if (sKk) sKk.className = `tactile-btn flex-1 py-1.5 rounded-xl text-xs font-extrabold text-center ${state.lang === "kk" ? "btn-sage shadow-sm" : "opacity-75"}`;
+
+      // Режимы ребёнка в сайдбаре (PC-app: вертикальный список)
+      const profBar = document.getElementById("sidebar-profiles");
       profBar.innerHTML = Object.entries(t.profiles).map(([key, label]) => {
         const active = state.profile === key;
         return `
           <button onclick="setAccessibilityProfile('${key}')"
-            class="tactile-btn px-3 sm:px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-extrabold shrink-0 border-2 flex items-center gap-1.5 ${
-              active ? "btn-sage border-transparent shadow-sm" : "bento-soft border-transparent hover:opacity-90"
+            class="tactile-btn w-full px-3 py-2 rounded-xl border-2 flex items-center gap-2.5 text-left ${
+              active ? "pill-sage border-transparent shadow-sm" : "bento-soft border-transparent hover:opacity-90"
             }">
-            ${icon(PROFILE_ICONS[key] || "star", "w-4 h-4", 2.2)}
-            <span>${stripLeadingEmoji(label)}</span>
+            <span class="w-9 h-9 rounded-lg ${active ? "bg-white/25" : "bento-soft"} flex items-center justify-center shrink-0">
+              ${icon(PROFILE_ICONS[key] || "star", "w-5 h-5", 2.2)}
+            </span>
+            <span class="text-sm font-extrabold truncate">${stripLeadingEmoji(label)}</span>
           </button>
         `;
       }).join("");
@@ -701,17 +714,30 @@
         })
         .join("");
 
-      // Top Bento Navigation Pills
-      const navBar = document.getElementById("top-nav-pills");
-      navBar.innerHTML = Object.entries(t.nav).map(([vKey, label]) => {
+      // Навигация: вертикальный список в сайдбаре (ПК) + таб-бар внизу (мобайл)
+      const sideNav = document.getElementById("sidebar-nav");
+      sideNav.innerHTML = Object.entries(t.nav).map(([vKey, label]) => {
         const active = state.view === vKey || (vKey === "library" && state.view === "reader");
         return `
           <button onclick="navigateView('${vKey}')"
-            class="tactile-btn px-3 sm:px-4 py-2 rounded-2xl text-xs sm:text-sm font-nunito font-extrabold shrink-0 border-2 flex items-center gap-1.5 ${
-              active ? "pill-amber border-current" : "bento-soft border-transparent hover:opacity-90"
+            class="tactile-btn w-full px-3 py-2 rounded-xl border-2 flex items-center gap-2.5 text-left ${
+              active ? "pill-amber border-transparent shadow-sm" : "bento-soft border-transparent hover:opacity-90"
             }">
-            ${icon(NAV_ICONS[vKey] || "home", "w-4 h-4", 2.2)}
-            <span>${stripLeadingEmoji(label)}</span>
+            <span class="w-9 h-9 rounded-lg ${active ? "bg-white/25" : "bento-soft"} flex items-center justify-center shrink-0">
+              ${icon(NAV_ICONS[vKey] || "home", "w-5 h-5", 2.2)}
+            </span>
+            <span class="text-sm font-extrabold truncate">${stripLeadingEmoji(label)}</span>
+          </button>
+        `;
+      }).join("");
+
+      const tabGrid = document.getElementById("bottom-tab-grid");
+      tabGrid.innerHTML = Object.entries(t.nav).map(([vKey]) => {
+        const active = state.view === vKey || (vKey === "library" && state.view === "reader");
+        return `
+          <button onclick="navigateView('${vKey}')" class="tactile-btn flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 ${active ? "pill-amber" : ""}" aria-label="${t.nav[vKey]}">
+            ${icon(NAV_ICONS[vKey] || "home", "w-6 h-6", active ? 2.4 : 2)}
+            <span class="text-[9px] sm:text-[10px] font-extrabold leading-none max-w-full truncate">${t.navShort[vKey]}</span>
           </button>
         `;
       }).join("");
