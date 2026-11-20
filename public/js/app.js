@@ -43,6 +43,43 @@
     };
 
     /**
+     * 5.5. UI ICON SET (stroke SVG, lucide-style) + helpers
+     * Функциональные элементы интерфейса — линейные SVG-иконки;
+     * контент (книги, AAC, истории) — дружелюбные эмодзи.
+     */
+    const ICON_PATHS = {
+      home: '<path d="M3 9.5 12 3l9 6.5V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22v-8h6v8"/>',
+      book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+      sparkles: '<path d="M12 4l1.8 5.4a1.8 1.8 0 0 0 1.1 1.1L20.3 12l-5.4 1.8a1.8 1.8 0 0 0-1.1 1.1L12 20.3l-1.8-5.4a1.8 1.8 0 0 0-1.1-1.1L3.7 12l5.4-1.8a1.8 1.8 0 0 0 1.1-1.1z"/><path d="M19 3v4"/><path d="M17 5h4"/>',
+      ladder: '<path d="M8 3v18"/><path d="M16 3v18"/><path d="M8 7.5h8"/><path d="M8 12h8"/><path d="M8 16.5h8"/>',
+      calendar: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M3 10.5h18"/>',
+      message: '<path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 1 1 16.1-3.8z"/>',
+      star: '<path d="M12 2.5l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.58l-5.9 3.1 1.13-6.58L2.45 9.44l6.6-.96z"/>',
+      puzzle: '<path d="M10 4.5a2.5 2.5 0 0 1 5 0V7h3a2 2 0 0 1 2 2v3h-2.5a2.5 2.5 0 0 0 0 5H20v3a2 2 0 0 1-2 2h-3v-2.5a2.5 2.5 0 0 0-5 0V20H7a2 2 0 0 1-2-2v-3H2.5a2.5 2.5 0 0 1 0-5H5V7a2 2 0 0 1 2-2h3z"/>',
+      zap: '<path d="M13 2L3 14h7l-1 8 11-12h-7l1-8z"/>',
+      eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+      speaker: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9.5 9.5 0 0 1 0 13"/>',
+      pause: '<path d="M10 4v16"/><path d="M14 4v16"/>',
+      type: '<path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/>',
+      ruler: '<path d="M21.3 8.7l-6-6a1 1 0 0 0-1.4 0L2.7 13.9a1 1 0 0 0 0 1.4l6 6a1 1 0 0 0 1.4 0l12.2-12.2a1 1 0 0 0 0-1.4z"/><path d="M7.5 10.5l2 2"/><path d="M10.5 7.5l2 2"/><path d="M13.5 4.5l2 2"/>',
+      checkCircle: '<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5.5"/>',
+      circle: '<circle cx="12" cy="12" r="9"/>'
+    };
+
+    function icon(name, cls = "w-5 h-5", sw = 2) {
+      const paths = ICON_PATHS[name] || "";
+      return `<svg class="qi-icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+    }
+
+    const NAV_ICONS = { hub: "home", library: "book", adapter: "sparkles", todo: "ladder", schedule: "calendar", aac: "message" };
+    const PROFILE_ICONS = { standard: "star", dyslexia: "book", asd: "puzzle", adhd: "zap", vision: "eye" };
+
+    // Снимаем ведущий emoji с метки (иконку уже рисует SVG)
+    function stripLeadingEmoji(s) {
+      return String(s).replace(/^\s*(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})\uFE0F?\s*/u, "");
+    }
+
+    /**
      * 7. CORE UTILITIES: SYLLABIFICATION, TOAST, BREATHING MODAL, SPEECH ENGINE
      */
     const VOWEL_RE = /[аәеёиоөуұүыіэюяАӘЕЁИОӨУҰҮЫІЭЮЯ]/;
@@ -194,11 +231,11 @@
       const stopEl = document.getElementById("btn-book-stop");
       if (!iconEl || !lblEl) return;
       if (state.isSpeaking) {
-        iconEl.textContent = "⏸️";
+        iconEl.innerHTML = icon("pause", "w-5 h-5", 2.5);
         lblEl.textContent = t.bookPause;
         stopEl.classList.remove("hidden");
       } else {
-        iconEl.textContent = "🔊";
+        iconEl.innerHTML = icon("speaker", "w-5 h-5");
         lblEl.textContent = t.bookSpeak;
         stopEl.classList.add("hidden");
       }
@@ -580,7 +617,21 @@
       renderTodoSteps();
       renderScheduleView();
       renderAACView();
+      applyScrollFades();
     }
+
+    // Правое затухание у скроллируемых рядов шапки, если контент не влезает
+    function applyScrollFades() {
+      ["profile-selector-bar", "top-nav-pills"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const overflow = el.scrollWidth > el.clientWidth + 4;
+        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+        el.classList.toggle("fade-edge", overflow && !atEnd);
+      });
+    }
+    window.addEventListener("resize", applyScrollFades);
+    window.addEventListener("load", applyScrollFades);
 
     function renderHeaderAndNav() {
       const t = UI_STRINGS[state.lang];
@@ -591,8 +642,8 @@
       // Language Switcher Buttons
       const btnRu = document.getElementById("lang-btn-ru");
       const btnKk = document.getElementById("lang-btn-kk");
-      btnRu.className = `tactile-btn px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "ru" ? "btn-sage shadow-sm" : "opacity-75"}`;
-      btnKk.className = `tactile-btn px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "kk" ? "btn-sage shadow-sm" : "opacity-75"}`;
+      btnRu.className = `tactile-btn px-3 sm:px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "ru" ? "btn-sage shadow-sm" : "opacity-75"}`;
+      btnKk.className = `tactile-btn px-3 sm:px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "kk" ? "btn-sage shadow-sm" : "opacity-75"}`;
 
       // Profile Selector Pills
       const profBar = document.getElementById("profile-selector-bar");
@@ -600,10 +651,11 @@
         const active = state.profile === key;
         return `
           <button onclick="setAccessibilityProfile('${key}')"
-            class="tactile-btn px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-extrabold shrink-0 border-2 ${
+            class="tactile-btn px-3 sm:px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-extrabold shrink-0 border-2 flex items-center gap-1.5 ${
               active ? "btn-sage border-transparent shadow-sm" : "bento-soft border-transparent hover:opacity-90"
             }">
-            ${label}
+            ${icon(PROFILE_ICONS[key] || "star", "w-4 h-4", 2.2)}
+            <span>${stripLeadingEmoji(label)}</span>
           </button>
         `;
       }).join("");
@@ -614,10 +666,11 @@
         const active = state.view === vKey || (vKey === "library" && state.view === "reader");
         return `
           <button onclick="navigateView('${vKey}')"
-            class="tactile-btn px-4 py-2 rounded-2xl text-xs sm:text-sm font-nunito font-extrabold shrink-0 border-2 ${
+            class="tactile-btn px-3 sm:px-4 py-2 rounded-2xl text-xs sm:text-sm font-nunito font-extrabold shrink-0 border-2 flex items-center gap-1.5 ${
               active ? "pill-amber border-current" : "bento-soft border-transparent hover:opacity-90"
             }">
-            ${label}
+            ${icon(NAV_ICONS[vKey] || "home", "w-4 h-4", 2.2)}
+            <span>${stripLeadingEmoji(label)}</span>
           </button>
         `;
       }).join("");
@@ -711,13 +764,13 @@
     function renderReaderToolbar() {
       const t = UI_STRINGS[state.lang];
       document.getElementById("ui-reader-back").textContent = t.readerBack;
-      document.getElementById("btn-book-normal").textContent = t.bookNormal;
-      document.getElementById("btn-book-simple").textContent = t.bookSimple;
+      document.getElementById("btn-book-normal").innerHTML = `${icon("book", "w-4 h-4")}<span>${stripLeadingEmoji(t.bookNormal)}</span>`;
+      document.getElementById("btn-book-simple").innerHTML = `${icon("sparkles", "w-4 h-4")}<span>${stripLeadingEmoji(t.bookSimple)}</span>`;
 
-      document.getElementById("btn-book-normal").className = `tactile-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold ${
+      document.getElementById("btn-book-normal").className = `tactile-btn px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-1.5 whitespace-nowrap ${
         state.bookMode === "normal" ? "btn-sage shadow-sm" : "opacity-80"
       }`;
-      document.getElementById("btn-book-simple").className = `tactile-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold ${
+      document.getElementById("btn-book-simple").className = `tactile-btn px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-1.5 ${
         state.bookMode === "simple" ? "btn-amber shadow-sm" : "opacity-80"
       }`;
 
@@ -731,7 +784,7 @@
 
       document.getElementById("ui-book-syl-lbl").textContent = t.bookSyl;
       document.getElementById("ui-book-ruler-lbl").textContent = t.bookRuler;
-      document.getElementById("ui-ruler-hint").textContent = t.rulerHint;
+      document.getElementById("ui-ruler-hint").innerHTML = `${icon("ruler", "w-4 h-4")}<span>${stripLeadingEmoji(t.rulerHint)}</span>`;
       document.getElementById("ui-reader-size-badge").textContent = `${state.readerSize}px`;
 
       document.getElementById("btn-book-syllables").className = `tactile-btn px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-1.5 border-2 ${
@@ -850,6 +903,10 @@
       document.getElementById("ui-adp-sub").textContent = t.adpSub;
       document.getElementById("ui-adp-presets-lbl").textContent = t.adpPresetsLbl;
       document.getElementById("ui-adp-run-btn").textContent = t.adpRunBtn;
+      ["water", "silk"].forEach((k) => {
+        const el = document.getElementById(`adp-preset-${k}`);
+        if (el) el.textContent = ADAPTER_PRESETS[k][state.lang].title;
+      });
 
       const grid = document.getElementById("adapter-output-grid");
       const d = state.adapterData;
@@ -864,7 +921,7 @@
         <div class="bento-card p-5 flex flex-col gap-3">
           <div class="flex items-center justify-between">
             <span class="px-3 py-1 rounded-full text-xs font-extrabold pill-sage">1. Diffit • ${isKK ? "Жеңіл мәтін (ЗПР)" : "Лёгкий текст (ЗПР)"}</span>
-            <button onclick="speakPhraseSimple('${d.simple.join(" ").replace(/'/g, "\\'")}', 0.85)" class="tactile-btn px-3 py-1.5 rounded-xl bento-soft text-xs font-extrabold">🔊</button>
+            <button onclick="speakPhraseSimple('${d.simple.join(" ").replace(/'/g, "\\'")}', 0.85)" class="tactile-btn px-3 py-2 rounded-xl bento-soft text-xs font-extrabold flex items-center justify-center">${icon("speaker", "w-4 h-4")}</button>
           </div>
           <div class="space-y-2 text-base leading-relaxed">
             ${d.simple.map(s => `<p class="p-3 rounded-2xl bento-soft">${s}</p>`).join("")}
@@ -926,6 +983,10 @@
       document.getElementById("ui-todo-title").textContent = t.todoTitle;
       document.getElementById("ui-todo-sub").textContent = t.todoSub;
       document.getElementById("ui-todo-presets-lbl").textContent = t.todoPresetsLbl;
+      ["math", "bag", "poem"].forEach((k) => {
+        const el = document.getElementById(`todo-preset-${k}`);
+        if (el) el.textContent = TODO_PRESETS[k][state.lang].title;
+      });
       document.getElementById("ui-todo-spice-lbl").textContent = t.todoSpiceLbl;
       document.getElementById("ui-todo-run-btn").textContent = t.todoRunBtn;
 
@@ -952,7 +1013,9 @@
             class="tactile-btn w-full p-4 rounded-2xl text-left flex items-center gap-3.5 border-2 ${
               checked ? "pill-sage border-current opacity-85" : "bento-soft border-transparent"
             }">
-            <span class="text-2xl shrink-0">${checked ? "✅" : "⬜"}</span>
+            <span class="shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${checked ? "btn-sage" : "bento-soft"}">
+              ${icon(checked ? "checkCircle" : "circle", "w-4 h-4", checked ? 2.4 : 2)}
+            </span>
             <span class="font-nunito font-extrabold text-base ${checked ? "line-through" : ""}">
               ${idx + 1}. ${step}
             </span>
@@ -985,7 +1048,9 @@
             }">
             <div class="flex items-center justify-between">
               <span class="px-3 py-1 rounded-full text-xs font-black btn-sage">${idx + 1}. ${t.schStages[idx]}</span>
-              <span class="text-2xl">${done ? "✅" : "⬜"}</span>
+              <span class="w-7 h-7 rounded-full flex items-center justify-center ${done ? "btn-sage" : "bento-soft"}">
+                ${icon(done ? "checkCircle" : "circle", "w-4 h-4", done ? 2.4 : 2)}
+              </span>
             </div>
             <div class="flex items-start gap-3">
               <span class="text-3xl">${c.icon}</span>
@@ -1041,9 +1106,25 @@
       `).join("");
     }
 
+    // Шапка: тень при прокрутке + точный отступ для липкой панели помощника слов
+    const _headerEl = document.querySelector("header");
+    function _syncHeaderOffset() {
+      if (_headerEl) document.documentElement.style.setProperty("--header-offset", `${_headerEl.offsetHeight + 16}px`);
+    }
+    window.addEventListener("scroll", () => {
+      if (_headerEl) _headerEl.classList.toggle("header-scrolled", window.scrollY > 6);
+    }, { passive: true });
+    window.addEventListener("resize", _syncHeaderOffset);
+
     // Bootstrap Application
     window.addEventListener("DOMContentLoaded", () => {
       loadAdapterPreset("water", true);
       selectTodoPreset("math", true);
       renderAll();
+      _syncHeaderOffset();
+      // Fade-затухание исчезает, когда ряд доскроллен до конца
+      ["profile-selector-bar", "top-nav-pills"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("scroll", applyScrollFades, { passive: true });
+      });
     });

@@ -250,3 +250,198 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   
+/* ===================================================================== */
+/* 2. RESPONSIVE & POLISH LAYER — профессиональный адаптивный дизайн      */
+/* ===================================================================== */
+
+:root {
+  --header-offset: 148px; /* высота шапки + отступ, пересчитывается JS */
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+::selection {
+  background-color: var(--sky-soft);
+  color: var(--text-main);
+}
+body.profile-vision ::selection {
+  background-color: var(--sky);
+  color: #121417;
+}
+
+/* Скроллбар (только на точных указателях) */
+@media (hover: hover) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border-card);
+    border-radius: 8px;
+    border: 2px solid var(--bg-canvas);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-muted);
+  }
+}
+
+/* Доступный focus-ring */
+:focus-visible {
+  outline: 3px solid var(--sky);
+  outline-offset: 2px;
+  border-radius: 14px;
+}
+
+/* Поля ввода: мягкое кольцо вместо «focus:outline-none» */
+input.bento-soft:focus,
+textarea.bento-soft:focus {
+  outline: none;
+  border-color: var(--sky);
+  box-shadow: 0 0 0 3px var(--sky-soft);
+}
+
+/* Отключённые кнопки */
+.tactile-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.tactile-btn:disabled:active {
+  transform: none;
+}
+
+/* Hover-подъём только для устройств с точным наведением */
+@media (hover: none) {
+  .bento-card-interactive:hover {
+    transform: none;
+    box-shadow: 0 3px 0 rgba(30, 36, 43, 0.04);
+    border-color: var(--border-card);
+  }
+}
+
+/* Шапка: safe-area сверху + тень при прокрутке */
+header {
+  padding-top: env(safe-area-inset-top);
+}
+header.header-scrolled {
+  box-shadow: 0 10px 30px -18px rgba(30, 36, 43, 0.28);
+}
+
+/* Линейные иконки интерфейса (SVG, stroke=currentColor) */
+.qi-icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  vertical-align: -0.18em;
+}
+
+/* Читалка: комфортная мера строки на широких экранах */
+.reader-text {
+  max-width: 68ch;
+}
+.reader-line-block {
+  padding: 10px 12px;
+}
+@media (min-width: 640px) {
+  .reader-line-block {
+    padding: 10px 16px;
+  }
+}
+
+/* Липкая панель помощника слов: отступ от реальной высоты шапки */
+.reader-aside {
+  position: -webkit-sticky;
+  position: sticky;
+}
+@media (min-width: 1024px) {
+  .reader-aside {
+    top: var(--header-offset);
+  }
+}
+
+/* Тост: на мобайле — во всю ширину, с учётом safe-area */
+#status-toast {
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  max-width: none;
+}
+@media (min-width: 640px) {
+  #status-toast {
+    left: auto;
+    right: 1.25rem;
+    max-width: 24rem;
+  }
+}
+
+/* Спокойный перерыв: bottom-sheet на мобайле, диалог на десктопе */
+@media (max-width: 639px) {
+  #calm-break-modal {
+    padding: 0;
+    align-items: stretch;
+  }
+  #calm-break-modal > .bento-card {
+    max-width: none;
+    height: 100dvh;
+    min-height: 100dvh;
+    border-radius: 28px 28px 0 0;
+    border-bottom: none;
+    overflow-y: auto;
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+  }
+}
+@media (min-width: 640px) {
+  #calm-break-modal {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Подвал: safe-area снизу */
+footer.site-footer {
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+}
+
+/* Уважение к prefers-reduced-motion (кроме дыхательного круга — его суть) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+  .breathe-bubble {
+    animation: gentleBreathe 8s ease-in-out infinite !important;
+  }
+}
+
+/* Узкие телефоны: чуть мягче скругления и плотнее сетка хабов */
+@media (max-width: 380px) {
+  .bento-card {
+    border-radius: 20px;
+  }
+}
+
+/* Правое затухание скроллируемых рядов шапки (только когда контент выходит за край) */
+.fade-edge {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent 100%);
+}
