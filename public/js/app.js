@@ -65,7 +65,9 @@
       checkCircle: '<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5.5"/>',
       circle: '<circle cx="12" cy="12" r="9"/>',
       chevronDown: '<path d="M6 9l6 6 6-6"/>',
-      x: '<path d="M18 6L6 18"/><path d="M6 6l12 12"/>'
+      x: '<path d="M18 6L6 18"/><path d="M6 6l12 12"/>',
+      pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+      video: '<path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>'
     };
 
     function icon(name, cls = "w-5 h-5", sw = 2) {
@@ -73,7 +75,7 @@
       return `<svg class="qi-icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
     }
 
-    const NAV_ICONS = { hub: "home", library: "book", adapter: "sparkles", todo: "ladder", schedule: "calendar", aac: "message" };
+    const NAV_ICONS = { hub: "home", library: "book", adapter: "sparkles", board: "pen", todo: "ladder", schedule: "calendar", aac: "message" };
     const PROFILE_ICONS = { standard: "star", dyslexia: "book", asd: "puzzle", adhd: "zap", vision: "eye" };
 
     // Снимаем ведущий emoji с метки (иконку уже рисует SVG)
@@ -290,9 +292,14 @@
     function navigateView(viewName) {
       stopAllSpeech();
       state.view = viewName;
-      ["hub", "library", "reader", "adapter", "todo", "schedule", "aac"].forEach(v => {
+      ["hub", "library", "reader", "adapter", "board", "todo", "schedule", "aac"].forEach(v => {
         const el = document.getElementById(`view-${v}`);
         if (el) el.classList.toggle("hidden", v !== viewName);
+      });
+      if (viewName !== "board") stopBoardCamera();
+      if (viewName === "board") requestAnimationFrame(() => {
+        boardCanvasSize(true);
+        initBoardPointerDrawing();
       });
       window.scrollTo({ top: 0, behavior: state.profile === "asd" ? "auto" : "smooth" });
       renderAll();
@@ -631,6 +638,7 @@
       renderTodoSteps();
       renderScheduleView();
       renderAACView();
+      renderBoard();
       applyScrollFades();
     }
 
@@ -735,7 +743,7 @@
       tabGrid.innerHTML = Object.entries(t.nav).map(([vKey]) => {
         const active = state.view === vKey || (vKey === "library" && state.view === "reader");
         return `
-          <button onclick="navigateView('${vKey}')" class="tactile-btn flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 ${active ? "pill-amber" : ""}" aria-label="${t.nav[vKey]}">
+          <button onclick="navigateView('${vKey}')" class="tactile-btn flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 min-w-0 flex-1 ${active ? "pill-amber" : ""}" aria-label="${t.nav[vKey]}">
             ${icon(NAV_ICONS[vKey] || "home", "w-6 h-6", active ? 2.4 : 2)}
             <span class="text-[9px] sm:text-[10px] font-extrabold leading-none max-w-full truncate">${t.navShort[vKey]}</span>
           </button>
@@ -769,10 +777,13 @@
       document.getElementById("ui-cell5-title").textContent = t.cell5Title;
       document.getElementById("ui-cell5-desc").textContent = t.cell5Desc;
       document.getElementById("ui-cell5-cta").textContent = t.cell5Cta;
+      document.getElementById("ui-cell6-title").textContent = t.cell6Title;
+      document.getElementById("ui-cell6-desc").textContent = t.cell6Desc;
+      document.getElementById("ui-cell6-cta").textContent = t.cell6Cta;
 
       document.getElementById("ui-lib-title").textContent = t.libTitle;
       document.getElementById("ui-lib-sub").textContent = t.libSub;
-      ["1", "2", "3", "4", "5"].forEach(n => {
+      ["1", "2", "3", "4", "5", "6"].forEach(n => {
         const el = document.getElementById(`ui-back-hub-${n}`);
         if (el) el.textContent = t.backHub;
       });
@@ -1186,6 +1197,306 @@
       if (_headerEl) _headerEl.classList.toggle("header-scrolled", window.scrollY > 6);
     }, { passive: true });
     window.addEventListener("resize", _syncHeaderOffset);
+
+    // =====================================================================
+    // AI DRAWING BOARD: камера + MediaPipe Hands.
+    // Логика: большой палец (tip 4) и указательный (tip 8) соприкасаются
+    // (pinch) — рисуем штрих; разведены — курсор движется, штриха нет.
+    // Если камера или ИИ-модель недоступны — рисовать можно мышью/пальцем.
+    // =====================================================================
+
+    const board = {
+      color: "#2E7D6B",
+      size: 8,
+      camOn: false,
+      landmarker: null,
+      loadPromise: null,
+      rafId: null,
+      stream: null,
+      lastPinch: false,
+      lastPoint: null,
+      prevX: null,
+      prevY: null,
+      statusKey: ""
+    };
+
+    function boardEl(id) { return document.getElementById(id); }
+
+    function renderBoard() {
+      const t = UI_STRINGS[state.lang];
+      const set = (id, v) => { const el = boardEl(id); if (el) el.textContent = v; };
+      set("ui-board-title", t.boardTitle);
+      set("ui-board-sub", t.boardSub);
+      set("ui-board-color-lbl", t.boardColorLbl);
+      set("ui-board-size-lbl", t.boardSizeLbl);
+      set("ui-board-clear", t.boardClear);
+      set("board-cam-btn-lbl", board.camOn ? t.boardStopCam : t.boardStartCam);
+      document.querySelectorAll(".board-swatch").forEach(b => {
+        const active = String(b.dataset.boardColor).toLowerCase() === board.color.toLowerCase();
+        b.style.borderColor = active ? "var(--amber)" : "transparent";
+      });
+      document.querySelectorAll(".board-size-btn").forEach(b => {
+        const active = parseInt(b.dataset.boardSize, 10) === board.size;
+        b.style.background = active ? "var(--amber)" : "";
+        b.style.color = active ? "#ffffff" : "";
+      });
+      if (!board.camOn) setBoardStatus("off", t.boardCamOff, "#94A3B8");
+    }
+
+    function setBoardStatus(key, text, color) {
+      if (board.statusKey === key) return;
+      board.statusKey = key;
+      const el = boardEl("board-status");
+      if (el) { el.textContent = text; el.style.color = color || "#ffffff"; }
+    }
+
+    function setBoardColor(color) { board.color = color; renderBoard(); }
+    function setBoardSize(size) { board.size = size; renderBoard(); }
+
+    function boardDpr() { return Math.min(window.devicePixelRatio || 1, 2); }
+
+    function boardCanvasSize(preserve = true) {
+      const c = boardEl("board-canvas");
+      if (!c) return;
+      const rect = c.getBoundingClientRect();
+      if (rect.width < 10) return;
+      let old = null;
+      if (preserve && c.width > 10) {
+        old = document.createElement("canvas");
+        old.width = c.width;
+        old.height = c.height;
+        old.getContext("2d").drawImage(c, 0, 0);
+      }
+      c.width = Math.round(rect.width * boardDpr());
+      c.height = Math.round(rect.height * boardDpr());
+      const ctx = c.getContext("2d");
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      if (old) ctx.drawImage(old, 0, 0, c.width, c.height);
+      else { ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, c.width, c.height); }
+    }
+
+    function clearBoardCanvas() {
+      const c = boardEl("board-canvas");
+      if (!c) return;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, c.width, c.height);
+    }
+
+    function loadBoardVision() {
+      if (board.loadPromise) return board.loadPromise;
+      board.loadPromise = (async () => {
+        const mod = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
+        const fileset = await mod.FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+        );
+        board.landmarker = await mod.HandLandmarker.createFromOptions(fileset, {
+          baseOptions: {
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+            delegate: "GPU"
+          },
+          numHands: 1,
+          runningMode: "VIDEO"
+        });
+        return board.landmarker;
+      })();
+      return board.loadPromise;
+    }
+
+    async function startBoardCamera() {
+      const video = boardEl("board-video");
+      if (!video) return;
+      const t = UI_STRINGS[state.lang];
+      setBoardStatus("loading", t.boardLoading, "#FBBF24");
+      try {
+        board.stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: "user" },
+          audio: false
+        });
+      } catch (e) {
+        board.camOn = false;
+        setBoardStatus("mouse", t.boardMouseMode, "#FCA5A5");
+        renderBoard();
+        return;
+      }
+      video.srcObject = board.stream;
+      await video.play().catch(() => {});
+      board.camOn = true;
+      renderBoard();
+      requestAnimationFrame(() => {
+        boardCanvasSize(true);
+        const hc = boardEl("board-hand-canvas");
+        if (hc) { hc.width = video.videoWidth || 640; hc.height = video.videoHeight || 480; }
+      });
+      try {
+        await loadBoardVision();
+      } catch (e) {
+        setBoardStatus("mouse", t.boardMouseMode, "#FCA5A5");
+        return;
+      }
+      board.rafId = requestAnimationFrame(boardLoop);
+    }
+
+    function stopBoardCamera() {
+      if (board.rafId) { cancelAnimationFrame(board.rafId); board.rafId = null; }
+      if (board.stream) { board.stream.getTracks().forEach(tr => tr.stop()); board.stream = null; }
+      const video = boardEl("board-video");
+      if (video) video.srcObject = null;
+      const hc = boardEl("board-hand-canvas");
+      if (hc) hc.getContext("2d").clearRect(0, 0, hc.width, hc.height);
+      const cur = boardEl("board-cursor");
+      if (cur) cur.classList.add("hidden");
+      board.lastPinch = false;
+      board.lastPoint = null;
+      board.prevX = null;
+      board.prevY = null;
+      if (board.camOn) {
+        board.camOn = false;
+        const t = UI_STRINGS[state.lang];
+        setBoardStatus("off", t.boardCamOff, "#94A3B8");
+        renderBoard();
+      }
+    }
+
+    function toggleBoardCamera() {
+      if (board.camOn) stopBoardCamera();
+      else startBoardCamera();
+    }
+
+    function boardLoop() {
+      if (!board.camOn) return;
+      board.rafId = requestAnimationFrame(boardLoop);
+      const video = boardEl("board-video");
+      if (!video || video.readyState < 2 || !board.landmarker) return;
+
+      let res = null;
+      try {
+        res = board.landmarker.detectForVideo(video, performance.now());
+      } catch (e) {
+        return;
+      }
+
+      const t = UI_STRINGS[state.lang];
+      const hc = boardEl("board-hand-canvas");
+      const ctxH = hc.getContext("2d");
+      ctxH.clearRect(0, 0, hc.width, hc.height);
+      const cur = boardEl("board-cursor");
+
+      const hands = res && res.landmarks ? res.landmarks : null;
+      if (!hands || !hands.length) {
+        board.lastPinch = false;
+        board.lastPoint = null;
+        board.prevX = null;
+        board.prevY = null;
+        cur.classList.add("hidden");
+        setBoardStatus("nohand", t.boardNoHand, "#E2E8F0");
+        return;
+      }
+
+      const lm = hands[0];
+      // Ладонь (5..17) — масштаб; кончики: большой 4, указательный 8
+      const palm = Math.hypot(lm[5].x - lm[17].x, lm[5].y - lm[17].y) || 0.001;
+      const pinchDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+      const pinching = pinchDist < 0.30 * palm;
+
+      // Оверлей: точки пальцев + линия между ними
+      const px = (l) => l.x * hc.width;
+      const py = (l) => l.y * hc.height;
+      ctxH.lineWidth = 3;
+      ctxH.beginPath();
+      ctxH.moveTo(px(lm[4]), py(lm[4]));
+      ctxH.lineTo(px(lm[8]), py(lm[8]));
+      ctxH.strokeStyle = pinching ? "rgba(46,125,107,0.9)" : "rgba(255,255,255,0.5)";
+      ctxH.stroke();
+      [4, 8].forEach((idx) => {
+        ctxH.beginPath();
+        ctxH.arc(px(lm[idx]), py(lm[idx]), pinching ? 9 : 6, 0, Math.PI * 2);
+        ctxH.fillStyle = pinching ? "rgba(46,125,107,0.95)" : "rgba(255,255,255,0.85)";
+        ctxH.fill();
+      });
+
+      // Курсор на холсте (зеркало: x инвертируется)
+      const c = boardEl("board-canvas");
+      const mx = (1 - lm[8].x) * c.clientWidth;
+      const my = lm[8].y * c.clientHeight;
+      if (!board.lastPoint) board.lastPoint = { x: mx, y: my };
+      board.lastPoint.x += (mx - board.lastPoint.x) * 0.45;
+      board.lastPoint.y += (my - board.lastPoint.y) * 0.45;
+      const sx = board.lastPoint.x * (c.width / c.clientWidth);
+      const sy = board.lastPoint.y * (c.height / c.clientHeight);
+
+      cur.classList.remove("hidden");
+      cur.style.left = board.lastPoint.x + "px";
+      cur.style.top = board.lastPoint.y + "px";
+
+      if (pinching) {
+        if (board.lastPinch && board.prevX != null) {
+          const ctx = c.getContext("2d");
+          ctx.strokeStyle = board.color;
+          ctx.lineWidth = board.size * boardDpr();
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(board.prevX, board.prevY);
+          ctx.lineTo(sx, sy);
+          ctx.stroke();
+        }
+        board.lastPinch = true;
+        board.prevX = sx;
+        board.prevY = sy;
+        setBoardStatus("drawing", t.boardDrawing, "#4ADE80");
+      } else {
+        board.lastPinch = false;
+        board.prevX = null;
+        board.prevY = null;
+        setBoardStatus("pinch", t.boardPinchHint, "#FBBF24");
+      }
+    }
+
+    // Фолбэк: мышь/тач — холст всегда рисует (работает и без камеры)
+    function initBoardPointerDrawing() {
+      const c = boardEl("board-canvas");
+      if (!c || c.dataset.pointerBound) return;
+      c.dataset.pointerBound = "1";
+      let drawing = false;
+      let last = null;
+      const pos = (e) => {
+        const r = c.getBoundingClientRect();
+        return {
+          x: (e.clientX - r.left) * (c.width / r.width),
+          y: (e.clientY - r.top) * (c.height / r.height)
+        };
+      };
+      c.addEventListener("pointerdown", (e) => {
+        drawing = true;
+        last = pos(e);
+        try { c.setPointerCapture(e.pointerId); } catch (err) {}
+      });
+      c.addEventListener("pointermove", (e) => {
+        if (!drawing) return;
+        const p = pos(e);
+        const ctx = c.getContext("2d");
+        ctx.strokeStyle = board.color;
+        ctx.lineWidth = board.size * boardDpr();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(last.x, last.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        last = p;
+      });
+      ["pointerup", "pointercancel", "pointerleave"].forEach((ev) =>
+        c.addEventListener(ev, () => { drawing = false; last = null; })
+      );
+    }
+
+    window.addEventListener("resize", () => {
+      if (board.camOn) boardCanvasSize(true);
+    });
+
+    // Bootstrap Application
 
     // Bootstrap Application
     window.addEventListener("DOMContentLoaded", () => {
