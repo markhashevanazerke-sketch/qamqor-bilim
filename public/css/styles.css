@@ -411,6 +411,25 @@ header.header-scrolled {
   }
 }
 
+/* Шторка выбора режима ребёнка: bottom-sheet на мобайле, диалог на десктопе */
+@media (max-width: 639px) {
+  #profile-picker-modal {
+    padding: 0;
+  }
+  #profile-picker-modal > .bento-card {
+    border-radius: 28px 28px 0 0;
+    border-bottom: none;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+}
+@media (min-width: 640px) {
+  #profile-picker-modal > .bento-card {
+    border-radius: 1.5rem;
+  }
+}
+
 /* Подвал: safe-area снизу */
 footer.site-footer {
   padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));

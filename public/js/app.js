@@ -63,7 +63,9 @@
       type: '<path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/>',
       ruler: '<path d="M21.3 8.7l-6-6a1 1 0 0 0-1.4 0L2.7 13.9a1 1 0 0 0 0 1.4l6 6a1 1 0 0 0 1.4 0l12.2-12.2a1 1 0 0 0 0-1.4z"/><path d="M7.5 10.5l2 2"/><path d="M10.5 7.5l2 2"/><path d="M13.5 4.5l2 2"/>',
       checkCircle: '<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5.5"/>',
-      circle: '<circle cx="12" cy="12" r="9"/>'
+      circle: '<circle cx="12" cy="12" r="9"/>',
+      chevronDown: '<path d="M6 9l6 6 6-6"/>',
+      x: '<path d="M18 6L6 18"/><path d="M6 6l12 12"/>'
     };
 
     function icon(name, cls = "w-5 h-5", sw = 2) {
@@ -315,6 +317,18 @@
     function closeCalmBreakModal() {
       clearInterval(breatheInterval);
       document.getElementById("calm-break-modal").classList.add("hidden");
+    }
+
+    function openProfilePicker() {
+      renderHeaderAndNav();
+      document.getElementById("profile-picker-modal").classList.remove("hidden");
+    }
+    function closeProfilePicker() {
+      document.getElementById("profile-picker-modal").classList.add("hidden");
+    }
+    function pickProfile(key) {
+      closeProfilePicker();
+      setAccessibilityProfile(key);
     }
 
     /**
@@ -645,7 +659,7 @@
       btnRu.className = `tactile-btn px-3 sm:px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "ru" ? "btn-sage shadow-sm" : "opacity-75"}`;
       btnKk.className = `tactile-btn px-3 sm:px-4 py-1.5 rounded-2xl text-sm font-extrabold ${state.lang === "kk" ? "btn-sage shadow-sm" : "opacity-75"}`;
 
-      // Profile Selector Pills
+      // Profile Selector Pills (десктоп: 5 пилюль слева)
       const profBar = document.getElementById("profile-selector-bar");
       profBar.innerHTML = Object.entries(t.profiles).map(([key, label]) => {
         const active = state.profile === key;
@@ -659,6 +673,33 @@
           </button>
         `;
       }).join("");
+
+      // Mobile profile picker: compact button (слева) + шторка со всеми режимами
+      document.getElementById("profile-picker-icon").innerHTML = icon(PROFILE_ICONS[state.profile] || "star", "w-5 h-5", 2.2);
+      document.getElementById("profile-picker-chevron").innerHTML = icon("chevronDown", "w-4 h-4", 2.4);
+      document.getElementById("profile-picker-label").textContent = t.profileShort[state.profile] || t.profiles[state.profile];
+      document.getElementById("ui-picker-title").textContent = t.profilePickerTitle;
+      document.getElementById("ui-picker-hint").textContent = t.profilePickerHint;
+      document.getElementById("profile-picker-list").innerHTML = Object.entries(t.profiles)
+        .map(([key, label]) => {
+          const active = state.profile === key;
+          return `
+            <button onclick="pickProfile('${key}')"
+              class="tactile-btn w-full px-3.5 py-3 rounded-2xl border-2 flex items-center gap-3 text-left ${
+                active ? "pill-sage border-transparent shadow-sm" : "bento-soft border-transparent"
+              }">
+              <span class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${active ? "bg-white/25" : "bento-soft"}">
+                ${icon(PROFILE_ICONS[key] || "star", "w-5 h-5", 2.2)}
+              </span>
+              <span class="flex flex-col min-w-0 flex-1">
+                <span class="text-sm font-extrabold leading-tight">${stripLeadingEmoji(label)}</span>
+                <span class="text-xs font-semibold leading-snug" style="color: ${active ? "var(--sage)" : "var(--text-muted)"};">${t.profileDesc[key]}</span>
+              </span>
+              ${active ? icon("checkCircle", "w-5 h-5", 2.2) : ""}
+            </button>
+          `;
+        })
+        .join("");
 
       // Top Bento Navigation Pills
       const navBar = document.getElementById("top-nav-pills");

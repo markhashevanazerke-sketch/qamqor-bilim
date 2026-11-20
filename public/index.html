@@ -71,12 +71,21 @@
         </div>
       </div>
 
-      <!-- Rows 2-3: Profile Selector + Bento Navigation (на десктопе — в одну линию) -->
-      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-1.5 lg:gap-4 pt-2 lg:pt-2.5 border-t" style="border-color: var(--border-card);">
-        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0 shrink-0" id="profile-selector-bar">
-          <!-- Populated dynamically by JS -->
+      <!-- Row 2: Режим ребёнка (слева) + Bento Navigation — одна линия на всех экранах -->
+      <div class="flex flex-row items-center justify-between gap-2 lg:gap-4 pt-2 lg:pt-2.5 border-t" style="border-color: var(--border-card);">
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Мобайл: компактная кнопка режима слева, открывает шторку со всеми 5 режимами -->
+          <button id="profile-picker-btn" onclick="openProfilePicker()" class="lg:hidden tactile-btn px-3 py-2 rounded-2xl bento-soft border-2 border-transparent font-extrabold flex items-center gap-1.5 shrink-0 min-w-0" aria-haspopup="dialog" aria-label="Режим ребёнка">
+            <span id="profile-picker-icon" class="shrink-0 flex items-center"></span>
+            <span id="profile-picker-label" class="text-xs sm:text-sm truncate max-w-28">Стандарт</span>
+            <span id="profile-picker-chevron" class="shrink-0 flex items-center opacity-70"></span>
+          </button>
+          <!-- Десктоп: 5 пилюль режимов -->
+          <div class="hidden lg:flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0" id="profile-selector-bar">
+            <!-- Populated dynamically by JS -->
+          </div>
         </div>
-        <nav id="top-nav-pills" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 lg:pt-0" aria-label="Разделы платформы">
+        <nav id="top-nav-pills" class="flex flex-1 lg:flex-initial min-w-0 items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 lg:pt-0" aria-label="Разделы платформы">
           <!-- Populated dynamically by JS -->
         </nav>
       </div>
@@ -765,6 +774,26 @@
       <button onclick="closeCalmBreakModal()" id="ui-modal-break-close" class="tactile-btn w-full py-3.5 rounded-2xl btn-sage font-nunito font-extrabold text-base">
         Я отдохнул(а), продолжить
       </button>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- PROFILE PICKER: режим ребёнка (bottom-sheet на мобайле, диалог на десктопе) -->
+  <!-- ===================================================================== -->
+  <div id="profile-picker-modal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" onclick="closeProfilePicker()">
+    <div class="bento-card w-full sm:max-w-md p-5 sm:p-6 flex flex-col gap-4 shadow-xl" onclick="event.stopPropagation()">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 id="ui-picker-title" class="font-nunito font-black text-xl">Ребёнок и режим</h3>
+          <p id="ui-picker-hint" class="text-xs mt-1 leading-relaxed" style="color: var(--text-muted);">Каждый режим настраивает интерфейс под ребёнка</p>
+        </div>
+        <button onclick="closeProfilePicker()" class="tactile-btn w-10 h-10 rounded-xl bento-soft flex items-center justify-center shrink-0" aria-label="Закрыть">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="profile-picker-list" class="flex flex-col gap-2">
+        <!-- Populated dynamically by JS -->
+      </div>
     </div>
   </div>
 
