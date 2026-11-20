@@ -639,6 +639,7 @@
       renderScheduleView();
       renderAACView();
       renderBoard();
+      renderAssistant();
       applyScrollFades();
     }
 
@@ -1496,7 +1497,291 @@
       if (board.camOn) boardCanvasSize(true);
     });
 
-    // Bootstrap Application
+    // =====================================================================
+    // ГОЛОСОВЫЙ АССИСТЕНТ (маскот Qamqor):
+    //  - плавающая кнопка в правом нижнем углу
+    //  - клик -> панель: STT (Web Speech API, ru-RU / kk-KZ) речи ребёнка
+    //  - все реплики сохраняются в SQLite (POST /api/utterances)
+    //  - «Родительский взгляд» -> POST /api/insights (ИИ-агент аналитик)
+    // =====================================================================
+
+    const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const assistant = {
+      open: false,
+      recording: false,
+      sr: null,
+      finalText: "",
+      micError: false
+    };
+
+    function renderAssistant() {
+      const t = UI_STRINGS[state.lang];
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      set("ui-assistant-name", t.assistantName);
+      set("ui-assistant-sub", t.assistantSub);
+      set("ui-assistant-mic", assistant.recording ? t.assistantMicRec : t.assistantMic);
+      set("ui-assistant-mic-hint", assistant.micError ? t.assistantMicError : t.assistantMicHint);
+      set("ui-assistant-fallback-hint", t.assistantFallbackHint);
+      set("ui-assistant-save-text", t.assistantSaveText);
+      set("ui-assistant-memory", t.assistantMemory);
+      set("ui-assistant-insights", t.assistantInsights);
+      set("ui-insights-title", t.insightsTitle);
+      set("ui-insights-sub", t.insightsSub);
+      set("ui-insights-close", t.insightsClose);
+      const ph = document.getElementById("assistant-text-input");
+      if (ph) ph.placeholder = t.assistantFallbackPh;
+
+      const micBtn = document.getElementById("assistant-mic-btn");
+      if (micBtn) micBtn.classList.toggle("is-recording", assistant.recording);
+      // Браузер без STT -> текстовый фолбэк
+      const fallback = document.getElementById("assistant-fallback");
+      if (fallback) fallback.classList.toggle("hidden", !!SpeechRecognitionImpl);
+      if (!SpeechRecognitionImpl) fallback.classList.add("flex");
+      const micRow = document.getElementById("assistant-mic-btn");
+      if (micRow && !SpeechRecognitionImpl) micRow.classList.add("hidden");
+    }
+
+    function assistantTimeLabel(iso) {
+      try {
+        const d = new Date(iso);
+        return d.toLocaleTimeString(state.lang === "kk" ? "kk" : "ru", { hour: "2-digit", minute: "2-digit" });
+      } catch (e) {
+        return "";
+      }
+    }
+
+    async function loadAssistantRecent() {
+      try {
+        const res = await fetch("/api/utterances?limit=30");
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = data.items || [];
+        const total = data.total || 0;
+        const t = UI_STRINGS[state.lang];
+        document.getElementById("assistant-count").textContent = total + " " + t.assistantPhrases;
+        const badge = document.getElementById("assistant-fab-badge");
+        if (badge) {
+          badge.textContent = total > 99 ? "99+" : String(total);
+          badge.classList.toggle("hidden", total === 0);
+        }
+        const box = document.getElementById("assistant-recent");
+        if (!items.length) {
+          box.innerHTML = `<div class="text-xs px-1" style="color: var(--text-muted);">${t.assistantEmpty}</div>`;
+          return;
+        }
+        box.innerHTML = items.slice(0, 8).map((u) =>
+          `<div class="assistant-recent-item"><span class="dot"></span><span class="min-w-0 break-words">${escapeHtml(u.text)}</span><time>${assistantTimeLabel(u.created_at)}</time></div>`
+        ).join("");
+      } catch (e) {
+        /* сеть недоступна — молча */
+      }
+    }
+
+    function toggleAssistant(force) {
+      assistant.open = typeof force === "boolean" ? force : !assistant.open;
+      const panel = document.getElementById("assistant-panel");
+      if (panel) panel.classList.toggle("hidden", !assistant.open);
+      const fab = document.getElementById("assistant-fab");
+      if (fab) fab.classList.toggle("is-active", assistant.open);
+      if (assistant.open) loadAssistantRecent();
+    }
+
+    function toggleAssistantMic() {
+      if (assistant.recording) {
+        try { assistant.sr && assistant.sr.stop(); } catch (e) {}
+        return;
+      }
+      if (!SpeechRecognitionImpl) return;
+      const rec = new SpeechRecognitionImpl();
+      rec.lang = state.lang === "kk" ? "kk-KZ" : "ru-RU";
+      rec.interimResults = true;
+      rec.continuous = true;
+      rec.maxAlternatives = 1;
+      assistant.sr = rec;
+      assistant.finalText = "";
+      assistant.micError = false;
+
+      const live = document.getElementById("assistant-live");
+      const renderLive = (txt) => {
+        if (!live) return;
+        live.classList.remove("hidden");
+        live.textContent = txt || "\u00A0";
+      };
+
+      rec.onresult = (e) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) assistant.finalText += r[0].transcript.trim() + " ";
+          else interim += r[0].transcript;
+        }
+        renderLive((assistant.finalText + " " + interim).trim());
+      };
+      rec.onend = () => {
+        assistant.recording = false;
+        const text = assistant.finalText.trim();
+        if (text) saveAssistantUtterance(text);
+        else renderAssistant();
+      };
+      rec.onerror = (e) => {
+        assistant.recording = false;
+        if (e.error === "not-allowed" || e.error === "service-not-allowed" || e.error === "audio-capture") {
+          assistant.micError = true;
+        }
+        renderAssistant();
+      };
+      try {
+        rec.start();
+        assistant.recording = true;
+        renderAssistant();
+        renderLive("\u00A0");
+      } catch (e) {
+        assistant.recording = false;
+        renderAssistant();
+      }
+    }
+
+    async function saveAssistantUtterance(text) {
+      const live = document.getElementById("assistant-live");
+      try {
+        const res = await fetch("/api/utterances", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text.slice(0, 500), lang: state.lang })
+        });
+        if (res.ok) {
+          const t = UI_STRINGS[state.lang];
+          if (live) {
+            live.textContent = t.assistantSaved;
+            live.style.color = "var(--sage)";
+            setTimeout(() => { live.classList.add("hidden"); live.style.color = ""; }, 2500);
+          }
+          loadAssistantRecent();
+        }
+      } catch (e) {
+        /* офлайн: фрейм останется на экране */
+      }
+      assistant.finalText = "";
+    }
+
+    function saveAssistantText() {
+      const input = document.getElementById("assistant-text-input");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      saveAssistantUtterance(text);
+    }
+
+    // ---------- Родительский взгляд (ИИ-агент аналитик) ----------
+
+    function openInsightsModal() {
+      stopAllSpeech();
+      const modal = document.getElementById("insights-modal");
+      if (modal) modal.classList.remove("hidden");
+      renderInsightsThinking();
+      fetchInsights();
+    }
+
+    function closeInsightsModal() {
+      const modal = document.getElementById("insights-modal");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    function renderInsightsThinking() {
+      const t = UI_STRINGS[state.lang];
+      const box = document.getElementById("insights-content");
+      if (box) {
+        box.innerHTML = `
+          <div class="flex flex-col items-center gap-3 py-8">
+            <div class="insights-spinner"></div>
+            <p class="text-sm font-bold text-center" style="color: var(--text-muted);">${t.insightsThinking}</p>
+          </div>`;
+      }
+    }
+
+    function renderInsightsNoData(msg) {
+      const box = document.getElementById("insights-content");
+      if (!box) return;
+      box.innerHTML = `
+        <div class="flex flex-col items-center gap-3 py-8 text-center">
+          <span class="text-4xl">🦉</span>
+          <p class="text-sm font-bold max-w-sm" style="color: var(--text-muted);">${msg}</p>
+        </div>`;
+    }
+
+    async function fetchInsights() {
+      const t = UI_STRINGS[state.lang];
+      try {
+        const res = await fetch("/api/insights", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lang: state.lang })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (data.error === "no utterances") renderInsightsNoData(t.insightsNoData);
+          else renderInsightsNoData(t.insightsError);
+          return;
+        }
+        renderInsightsData(data);
+      } catch (e) {
+        renderInsightsNoData(t.insightsError);
+      }
+    }
+
+    function renderInsightsData(d) {
+      const t = UI_STRINGS[state.lang];
+      const badge = d.source === "ai"
+        ? `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold pill-sage">${t.insightsAiBadge}</span>`
+        : `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold" style="background: var(--amber-soft, #FDF1DC); color: #92610C;">${t.insightsFallbackBadge}</span>`;
+      const count = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bento-soft">${d.count || 0} ${t.insightsPhrasesCount}</span>`;
+
+      const topics = (d.topics || []).map((tp) => `
+        <div class="bento-soft rounded-2xl p-3 flex items-start gap-2.5">
+          <span class="text-xl leading-none">${tp.icon}</span>
+          <div class="min-w-0">
+            <div class="text-sm font-extrabold flex items-center gap-2">
+              ${escapeHtml(tp.title)}
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bento-card" style="border: 1.5px solid var(--border-card);">×${tp.count}</span>
+            </div>
+            ${tp.note ? `<p class="text-xs mt-0.5 leading-snug" style="color: var(--text-muted);">${escapeHtml(tp.note)}</p>` : ""}
+          </div>
+        </div>`).join("");
+
+      const emo = d.emotions || {};
+      const emotions = `
+        <div class="flex flex-col gap-2">
+          ${emo.positive ? `<div class="rounded-2xl p-3" style="background: var(--sage-soft);"><div class="text-[11px] font-extrabold mb-0.5" style="color: var(--sage);">💚 ${t.insightsPosLbl}</div><p class="text-sm font-semibold leading-snug">${escapeHtml(emo.positive)}</p></div>` : ""}
+          ${emo.concern ? `<div class="rounded-2xl p-3" style="background: var(--amber-soft, #FDF1DC);"><div class="text-[11px] font-extrabold mb-0.5" style="color: #92610C;">🧡 ${t.insightsConcernLbl}</div><p class="text-sm font-semibold leading-snug">${escapeHtml(emo.concern)}</p></div>` : ""}
+        </div>`;
+
+      const moments = (d.key_moments || []).map((m) => `
+        <div class="flex items-start gap-2.5 px-1">
+          <span class="mt-1 w-2 h-2 rounded-full shrink-0" style="background: var(--sky);"></span>
+          <p class="text-sm font-semibold leading-relaxed" style="color: var(--text-main);">«${escapeHtml(m)}»</p>
+        </div>`).join("");
+
+      const forParent = (d.for_parent || []).map((p) => `
+        <div class="bento-soft rounded-2xl p-3 flex items-start gap-2.5">
+          <span class="text-lg leading-none">${p.icon}</span>
+          <p class="text-sm font-semibold leading-snug">${escapeHtml(p.text)}</p>
+        </div>`).join("");
+
+      document.getElementById("insights-content").innerHTML = `
+        <div class="flex flex-wrap items-center gap-2">${badge}${count}</div>
+        ${d.summary ? `<p class="text-sm font-bold leading-relaxed" style="color: var(--text-main);">${escapeHtml(d.summary)}</p>` : ""}
+        ${topics ? `<div><h3 class="text-xs font-extrabold uppercase tracking-wide mb-2" style="color: var(--text-muted);">${t.insightsTopics}</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${topics}</div></div>` : ""}
+        ${emo.positive || emo.concern ? `<div><h3 class="text-xs font-extrabold uppercase tracking-wide mb-2" style="color: var(--text-muted);">${t.insightsEmotions}</h3>${emotions}</div>` : ""}
+        ${moments ? `<div><h3 class="text-xs font-extrabold uppercase tracking-wide mb-2" style="color: var(--text-muted);">${t.insightsKeyMoments}</h3><div class="flex flex-col gap-2">${moments}</div></div>` : ""}
+        ${forParent ? `<div><h3 class="text-xs font-extrabold uppercase tracking-wide mb-2" style="color: var(--text-muted);">${t.insightsForParent}</h3><div class="flex flex-col gap-2">${forParent}</div></div>` : ""}
+      `;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
 
     // Bootstrap Application
     window.addEventListener("DOMContentLoaded", () => {

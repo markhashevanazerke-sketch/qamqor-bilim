@@ -960,5 +960,88 @@
   <!-- ===================================================================== -->
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>
+    <!-- =================================================================== -->
+    <!-- FLOATING AI ASSISTANT: маскот + голосовая память + взгляд родителя -->
+    <!-- =================================================================== -->
+    <button id="assistant-fab" onclick="toggleAssistant()" aria-label="Голосовой помощник Qamqor"
+      class="fixed z-50 w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden shadow-xl border-4 transition-transform hover:scale-105 active:scale-95"
+      style="right: 16px; bottom: calc(78px + env(safe-area-inset-bottom)); border-color: var(--bg-card); animation: mascot-bob 3.2s ease-in-out infinite;">
+      <img src="images/mascot.jpg" alt="Qamqor" class="w-full h-full object-cover" draggable="false">
+      <span id="assistant-fab-badge" class="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full text-[11px] font-black text-white flex items-center justify-center" style="background: var(--sage);">0</span>
+    </button>
+
+    <!-- Панель ассистента -->
+    <div id="assistant-panel" class="hidden fixed z-50" style="right: 16px; bottom: calc(150px + env(safe-area-inset-bottom)); width: 350px; max-width: calc(100vw - 32px);">
+      <div class="bento-card rounded-3xl p-4 flex flex-col gap-3" style="box-shadow: 0 18px 50px rgba(10,16,22,0.22);">
+        <div class="flex items-center gap-2.5">
+          <img src="images/mascot.jpg" class="w-11 h-11 rounded-full object-cover shrink-0" style="border: 2px solid var(--border-card);" alt="Qamqor">
+          <div class="flex-1 min-w-0">
+            <div id="ui-assistant-name" class="font-nunito font-black text-sm leading-tight">Qamqor — голосовая память</div>
+            <div id="ui-assistant-sub" class="text-[11px] leading-snug" style="color: var(--text-muted);">Нажми на микрофон и расскажи о своём дне</div>
+          </div>
+          <button onclick="toggleAssistant(false)" class="tactile-btn w-9 h-9 rounded-xl bento-soft flex items-center justify-center shrink-0" aria-label="Закрыть">
+            <svg class="qi-icon w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <button id="assistant-mic-btn" onclick="toggleAssistantMic()"
+          class="tactile-btn w-full py-3.5 rounded-2xl font-nunito font-extrabold text-sm flex items-center justify-center gap-2 pill-sage">
+          <svg class="qi-icon w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><path d="M12 18v4"/></svg>
+          <span id="ui-assistant-mic">Говори</span>
+        </button>
+        <p id="ui-assistant-mic-hint" class="text-[11px] text-center -mt-1" style="color: var(--text-muted);">Распознавание: русский / казахский</p>
+
+        <div id="assistant-live" class="hidden min-h-[46px] px-3 py-2.5 rounded-2xl bento-soft text-sm font-semibold leading-relaxed break-words"></div>
+
+        <!-- Фолбэк: браузер без SpeechRecognition -->
+        <div id="assistant-fallback" class="hidden flex-col gap-2">
+          <p id="ui-assistant-fallback-hint" class="text-xs leading-snug" style="color: var(--text-muted);">Твой браузер не распознаёт голос — напиши, что сказал ребёнок</p>
+          <div class="flex gap-2">
+            <textarea id="assistant-text-input" rows="2" placeholder="Например: «Мне сегодня было грустно на перемене»"
+              class="flex-1 rounded-2xl bento-soft px-3 py-2 text-sm resize-none" style="border: 2px solid var(--border-card); color: var(--text-main);"></textarea>
+            <button id="assistant-save-text-btn" onclick="saveAssistantText()" class="tactile-btn px-3 rounded-2xl pill-sage font-nunito font-extrabold text-xs whitespace-nowrap">
+              <span id="ui-assistant-save-text">Сохранить</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5 pt-1" style="border-top: 2px solid var(--border-card);">
+          <div class="flex items-center justify-between">
+            <span id="ui-assistant-memory" class="text-xs font-extrabold">Память</span>
+            <span id="assistant-count" class="text-[11px] font-bold" style="color: var(--text-muted);">0 фраз</span>
+          </div>
+          <div id="assistant-recent" class="flex flex-col gap-1.5 max-h-28 overflow-y-auto pr-1"></div>
+        </div>
+
+        <button onclick="openInsightsModal()" id="assistant-insights-btn"
+          class="tactile-btn w-full py-3 rounded-2xl font-nunito font-extrabold text-sm flex items-center justify-center gap-2"
+          style="background: var(--amber); color: #ffffff;">
+          <svg class="qi-icon w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.6 5.6 1.9-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/></svg>
+          <span id="ui-assistant-insights">Родительский взгляд: что важнее всего</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Модалка: Родительский взгляд (ИИ-аналитик) -->
+    <div id="insights-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-5" style="background: rgba(12,18,24,0.6);">
+      <div class="bento-card rounded-3xl w-full max-w-2xl max-h-[86vh] overflow-y-auto p-4 sm:p-6 flex flex-col gap-4" style="box-shadow: 0 24px 70px rgba(0,0,0,0.35);">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <img src="images/mascot.jpg" class="w-12 h-12 rounded-full object-cover shrink-0" style="border: 2px solid var(--border-card);" alt="Qamqor">
+            <div class="min-w-0">
+              <h2 id="ui-insights-title" class="font-nunito font-black text-lg sm:text-xl leading-tight">Самое важное от ребёнка</h2>
+              <p id="ui-insights-sub" class="text-xs" style="color: var(--text-muted);">ИИ-агент проанализировал все реплики из голосовой памяти</p>
+            </div>
+          </div>
+          <button onclick="closeInsightsModal()" class="tactile-btn w-9 h-9 rounded-xl bento-soft flex items-center justify-center shrink-0" aria-label="Закрыть">
+            <svg class="qi-icon w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div id="insights-content" class="flex flex-col gap-4"></div>
+        <button onclick="closeInsightsModal()" class="tactile-btn w-full py-3 rounded-2xl bento-soft font-nunito font-extrabold text-sm">
+          <span id="ui-insights-close">Закрыть</span>
+        </button>
+      </div>
+    </div>
 </body>
 </html>

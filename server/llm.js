@@ -29,9 +29,9 @@ function extractJson(text) {
   return JSON.parse(t.slice(start, end + 1));
 }
 
-async function chatOnce(systemPrompt, userPrompt) {
+async function chatOnce(systemPrompt, userPrompt, timeoutMs = config.timeoutMs) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${config.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
       method: "POST",
@@ -64,16 +64,19 @@ async function chatOnce(systemPrompt, userPrompt) {
 
 /**
  * Запрос к LLM с ожиданием строгого JSON.
- * Одна повторная попытка при сбое (таймаут, сетка, битый JSON).
+ * По умолчанию — одна повторная попытка при сбое (таймаут, сетка, битый JSON).
+ * opts: { attempts, timeoutMs } — для «быстрых» эндпоинтов (аналитика).
  */
-async function chatJSON(systemPrompt, userPrompt) {
+async function chatJSON(systemPrompt, userPrompt, opts = {}) {
+  const attempts = Math.max(1, opts.attempts || 2);
+  const timeoutMs = opts.timeoutMs || config.timeoutMs;
   let lastErr;
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      return await chatOnce(systemPrompt, userPrompt);
+      return await chatOnce(systemPrompt, userPrompt, timeoutMs);
     } catch (err) {
       lastErr = err;
-      if (attempt === 1) await new Promise((r) => setTimeout(r, 500));
+      if (attempt < attempts) await new Promise((r) => setTimeout(r, 500));
     }
   }
   throw lastErr;
