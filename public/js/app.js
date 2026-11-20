@@ -784,8 +784,8 @@
         return `
           <button onclick="openReaderWithBook('${book.id}')"
             class="tactile-btn bento-soft p-3.5 text-left flex flex-col justify-between gap-2.5 border-2 border-transparent hover:border-current transition-all">
-            <div class="w-full rounded-2xl overflow-hidden">
-              ${getBookIllustrationSVG(book.id, false)}
+            <div class="relative w-full aspect-[3/4] rounded-2xl overflow-hidden">
+              ${getBookCoverHTML(book.id, false)}
             </div>
             <div>
               <span class="text-[11px] font-extrabold pill-${book.accent} px-2.5 py-0.5 rounded-full">
@@ -806,8 +806,8 @@
         return `
           <div class="bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-4">
             <div class="flex flex-col gap-3">
-              <div class="w-full rounded-3xl overflow-hidden border" style="border-color: var(--border-card);">
-                ${getBookIllustrationSVG(book.id, true)}
+              <div class="relative w-full max-w-[260px] sm:max-w-[280px] mx-auto aspect-[3/4] rounded-3xl overflow-hidden border-2" style="border-color: var(--border-card);">
+                ${getBookCoverHTML(book.id, true)}
               </div>
               <div class="flex items-center justify-between gap-2">
                 <span class="px-3 py-1 rounded-full text-xs font-extrabold pill-${book.accent}">
@@ -882,7 +882,11 @@
       document.getElementById("reader-book-title").textContent = state.bookSyllables
         ? book.title.split(/\s+/).map(splitSyllables).join(" ")
         : book.title;
-      document.getElementById("reader-book-illustration").innerHTML = getBookIllustrationSVG(bookObj.id, true);
+      document.getElementById("reader-book-illustration").innerHTML = `
+        <div class="relative w-full max-w-[240px] sm:max-w-[280px] mx-auto aspect-[3/4] rounded-2xl overflow-hidden shadow-md">
+          ${getBookCoverHTML(bookObj.id, true)}
+        </div>
+      `;
 
       const paragraphs = state.bookMode === "simple" ? curPage.simple : curPage.normal;
       const textContainer = document.getElementById("reader-book-text");

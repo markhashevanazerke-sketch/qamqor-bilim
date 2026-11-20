@@ -810,6 +810,16 @@
     /**
      * 6. SVG ILLUSTRATIONS FOR BOOKS & SOCIAL STORIES (ZERO EXTERNAL URLS)
      */
+    function getBookCoverHTML(bookId, large = true) {
+      // Сгенерированная обложка (JPG); при недоступности — SVG-иллюстрация запасом
+      return `
+        <div class="absolute inset-0 flex items-center justify-center" style="background-color: var(--bg-soft);">
+          ${getBookIllustrationSVG(bookId, large)}
+        </div>
+        <img src="images/covers/${bookId}.jpg" alt="" loading="lazy" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()">
+      `;
+    }
+
     function getBookIllustrationSVG(bookId, large = true) {
       const h = large ? "160" : "96";
       if (bookId === "baikonur") {
