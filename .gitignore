@@ -5,3 +5,4 @@ node_modules/
 shots/
 data/
 cloudflared.exe
+static-test-server.js

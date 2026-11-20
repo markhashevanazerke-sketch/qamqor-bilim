@@ -204,6 +204,8 @@ async function refreshInsights() {
 function renderInsightsData(d) {
   const badge = d.source === "ai"
     ? '<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold pill-sage">ИИ-анализ</span>'
+    : d.source === "offline"
+    ? '<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold" style="background: var(--sky-soft); color: var(--sky);">Демо-анализ (офлайн-режим)</span>'
     : '<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold" style="background: var(--amber-soft); color: #92610C;">Упрощённый анализ (ИИ сейчас перегружен)</span>';
   const count = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bento-soft">${d.count || 0} фраз проанализировано</span>`;
 
