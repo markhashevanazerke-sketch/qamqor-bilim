@@ -179,6 +179,15 @@
       font-weight: 900;
     }
 
+    .btn-plum {
+      background-color: var(--plum);
+      color: #FFFFFF;
+    }
+    body.profile-vision .btn-plum {
+      color: #121417;
+      font-weight: 900;
+    }
+
     .pill-sage { background-color: var(--sage-soft); color: var(--sage); }
     .pill-amber { background-color: var(--amber-soft); color: var(--amber); }
     .pill-sky { background-color: var(--sky-soft); color: var(--sky); }

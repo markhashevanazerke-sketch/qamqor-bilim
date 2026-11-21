@@ -6,3 +6,6 @@ shots/
 data/
 cloudflared.exe
 static-test-server.js
+make-test-pdf.js
+test-lesson-ui.js
+test-400.js

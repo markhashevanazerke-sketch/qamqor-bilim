@@ -66,6 +66,34 @@
     return { steps: ["Устроиться и выдохнуть", "Открыть задачу: " + task, "Первый лёгкий шаг", "Отдых 1 минуту", "Второй шаг", "Третий шаг", "Финал: «Готово! Молодец!»"] };
   }
 
+  // ---------- «Мой урок»: локальный фолбэк (порт с server/fallback.js) ----------
+  function localLesson(text, lang) {
+    var kk = lang === "kk";
+    var sentences = text.split(/[.!?]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var simple = (sentences.length ? sentences : [text]).slice(0, 5).map(function (s) {
+      return s.length > 120 ? s.slice(0, 117) + "…" : s;
+    });
+    var words = text.split(/\s+/).map(function (w) { return w.replace(/[.,;:!?«»()"']/g, ""); }).filter(function (w) { return w.length > 4; }).slice(0, 2);
+    var keyWord = words[0] || (kk ? "тақырып" : "тема");
+    var tasks = [
+      { icon: "📖", title: kk ? "Оқу" : "Чтение", text: kk ? "Бірінші сөйлемді дауыстап оқу" : "Прочитай первое предложение вслух" },
+      { icon: "🗣️", title: kk ? "Айту" : "Рассказ", text: kk ? "Тақырып туралы бір сөйлемді өз сөзіңмен айту" : "Расскажи своими словами одно предложение о теме" },
+      { icon: "✍️", title: kk ? "Жазу" : "Запись", text: kk ? "«" + keyWord + "» сөзін жазу" : "Напиши слово «" + keyWord + "»" },
+      { icon: "🎨", title: kk ? "Сюжету сызу" : "Рисунок", text: kk ? "Сабақ туралы кішкентай сурет сызу" : "Нарисуй маленький рисунок про этот урок" },
+      { icon: "⭐", title: kk ? "Мақтау" : "Похвала", text: kk ? "Өзіңді мақта: «Мен оқид аламын!»" : "Похвали себя: «Я справляюсь!»" }
+    ];
+    var quiz = {
+      q: kk ? "Сабақта не турды?" : "О чём был этот урок?",
+      options: [
+        sentences[0] || text,
+        kk ? "Аңдамалар туралы" : "Про правила вежливости",
+        kk ? "Аспаздық туралы" : "Про готовку"
+      ],
+      correct: 0
+    };
+    return { title: keyWord, simple: simple, tasks: tasks, quiz: quiz };
+  }
+
   // ---------- «Твой друг» (демо): тёплые ответы по ключевым словам ----------
   var FRIEND_RULES = [
     {
@@ -192,6 +220,13 @@
         quiz: localAdapter(title || "Текст", src, lang).quiz,
         source: "offline"
       }));
+    }
+
+    if (path === "/api/lesson" && method === "POST") {
+      var ltext = String(body.text || "").trim();
+      if (ltext.length < 40) return Promise.resolve(result(400, { error: "text too short" }));
+      var llang = /[әғқңөүұіһӘҒҚҢӨҮҰІҺ]/.test(ltext) ? "kk" : lang;
+      return Promise.resolve(result(200, { ...localLesson(ltext.slice(0, 8000), llang), source: "offline" }));
     }
 
     if (path === "/api/todo" && method === "POST") {

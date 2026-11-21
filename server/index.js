@@ -9,9 +9,9 @@ const path = require("path");
 require("dotenv").config({ quiet: true, path: path.join(__dirname, "..", ".env") });
 const express = require("express");
 const { chatJSON, config } = require("./llm");
-const { adapterSystem, adapterUser, topicTextSystem, topicTextUser, todoSystem, todoUser, analystSystem, analystUser, friendSystem, friendUser } = require("./prompts");
+const { adapterSystem, adapterUser, topicTextSystem, topicTextUser, todoSystem, todoUser, analystSystem, analystUser, friendSystem, friendUser, lessonSystem, lessonUser } = require("./prompts");
 const db = require("./db");
-const { localAdapterFallback, localTodoFallback } = require("./fallback");
+const { localAdapterFallback, localTodoFallback, localLessonFallback } = require("./fallback");
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -83,6 +83,36 @@ function normalizeTodo(d, target, lang) {
   return { steps: steps.slice(0, target) };
 }
 
+function normalizeLesson(d, text, lang) {
+  if (!d || typeof d !== "object") throw new Error("bad shape");
+  const simple = (Array.isArray(d.simple) ? d.simple : [])
+    .map((s) => str(s, 300))
+    .filter(Boolean)
+    .slice(0, 6);
+  const tasks = (Array.isArray(d.tasks) ? d.tasks : [])
+    .map((t) => ({
+      icon: str(t?.icon, 4) || "📌",
+      title: str(t?.title, 60),
+      text: str(t?.text, 200),
+    }))
+    .filter((t) => t.title || t.text)
+    .slice(0, 6);
+  const q = d.quiz || {};
+  const options = (Array.isArray(q.options) ? q.options : [])
+    .map((o) => str(o, 160))
+    .filter(Boolean)
+    .slice(0, 3);
+  let correct = Number(q.correct);
+  if (!Number.isInteger(correct) || correct < 0 || correct >= options.length) correct = 0;
+  if (!simple.length || !tasks.length) throw new Error("empty lesson");
+  return {
+    title: str(d.title, 120),
+    simple,
+    tasks,
+    quiz: options.length ? { q: str(q.q, 240), options, correct } : null,
+  };
+}
+
 // Спокойные «запасные» шаги на случай, если LLM вернёт меньше, чем просили
 const PAD_STEPS = {
   ru: [
@@ -150,6 +180,24 @@ app.post("/api/todo", async (req, res) => {
   } catch (err) {
     console.warn("[todo] LLM failed, using local fallback:", err.message);
     res.json({ ...localTodoFallback(task, level, lang), source: "fallback" });
+  }
+});
+
+// «Мой урок»: текст из PDF-файла урока (извлекается в браузере) →
+// объяснение простыми словами + мини-задания + добрый вопрос
+app.post("/api/lesson", async (req, res) => {
+  const text = str(req.body?.text, 20000).trim();
+  // Язык — по тексту урока (казацкие буквы ⇒ kk), иначе язык приложения
+  const uiLang = req.body?.lang === "kk" ? "kk" : "ru";
+  const lang = /[әғқңөүұіһӘҒҚҢӨҮҰІҺ]/.test(text) ? "kk" : uiLang;
+  if (text.length < 40) return res.status(400).json({ error: "text too short" });
+
+  try {
+    const raw = await chatJSON(lessonSystem(lang), lessonUser(text.slice(0, 8000)), { attempts: 1, timeoutMs: 60000 });
+    res.json({ ...normalizeLesson(raw, text, lang), source: "ai" });
+  } catch (err) {
+    console.warn("[lesson] LLM failed, using local fallback:", err.message);
+    res.json({ ...localLessonFallback(text, lang), source: "fallback" });
   }
 });
 
@@ -242,7 +290,7 @@ app.post("/api/insights", async (req, res) => {
 
 // ---------- «Твой друг»: чат ребёнка с ИИ-другом ----------
 
-const CHAT_SECTIONS = ["hub", "library", "reader", "adapter", "board", "todo", "schedule", "aac"];
+const CHAT_SECTIONS = ["hub", "library", "reader", "adapter", "board", "todo", "schedule", "aac", "lesson"];
 
 app.get("/api/messages", (req, res) => {
   const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 30, 200));

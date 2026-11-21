@@ -30,6 +30,12 @@
       adapterQuizAnswer: null,
       adapterPresetKey: null,    // ключ последнего загруженного пресета (water|silk)
 
+      // My Lesson (PDF → ИИ) State
+      lessonFile: null,          // выбранный PDF-файл урока
+      lessonData: null,          // объяснение + мини-задания из /api/lesson
+      lessonTaskDone: null,      // какие мини-задания выполнены
+      lessonQuizAnswered: false,
+
       // Magic ToDo State
       todoTaskTitle: "",
       todoLevel: 2,
@@ -293,7 +299,7 @@
     function navigateView(viewName) {
       stopAllSpeech();
       state.view = viewName;
-      ["hub", "library", "reader", "adapter", "board", "todo", "schedule", "aac"].forEach(v => {
+      ["hub", "library", "reader", "adapter", "board", "todo", "schedule", "aac", "lesson"].forEach(v => {
         const el = document.getElementById(`view-${v}`);
         if (el) el.classList.toggle("hidden", v !== viewName);
       });
@@ -520,6 +526,222 @@
     }
 
     /**
+     * 10.5. MY LESSON (PDF → ИИ): PDF-файл урока от учителя →
+     *      объяснение простыми словами + мини-задания + добрый вопрос.
+     * Текст извлекается в браузере (pdf.js с CDN) и отправляется на /api/lesson.
+     */
+    let pdfjsPromise = null;
+    function loadPdfJs() {
+      if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+      if (!pdfjsPromise) {
+        pdfjsPromise = new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+          s.onload = () => {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+              "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+            resolve(window.pdfjsLib);
+          };
+          s.onerror = () => { pdfjsPromise = null; reject(new Error("pdf.js")); };
+          document.head.appendChild(s);
+        });
+      }
+      return pdfjsPromise;
+    }
+
+    async function extractPdfText(file) {
+      const pdfjs = await loadPdfJs();
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjs.getDocument({ data: buf }).promise;
+      let text = "";
+      const pages = Math.min(pdf.numPages, 12);
+      for (let i = 1; i <= pages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map((it) => it.str).join(" ") + "\n";
+      }
+      return text.replace(/\s+/g, " ").trim();
+    }
+
+    function onLessonFileSelected(e) {
+      const f = e.target.files && e.target.files[0];
+      if (f) setLessonFile(f);
+      e.target.value = ""; // чтобы можно было выбрать тот же файл повторно
+    }
+
+    function setLessonFile(f) {
+      const t = UI_STRINGS[state.lang];
+      hideLessonError();
+      const isPdf = /\.pdf$/i.test(f.name) || f.type === "application/pdf";
+      if (!isPdf) { showLessonError(t.lessonErrNotPdf); return; }
+      if (f.size > 10 * 1024 * 1024) { showLessonError(t.lessonErrBig); return; }
+      state.lessonFile = f;
+      state.lessonData = null;
+      state.lessonTaskDone = null;
+      state.lessonQuizAnswered = false;
+      const nameEl = document.getElementById("lesson-file-name");
+      nameEl.textContent = "📎 " + f.name;
+      nameEl.classList.remove("hidden");
+      const out = document.getElementById("lesson-output");
+      out.classList.add("hidden");
+      out.innerHTML = "";
+      const btn = document.getElementById("btn-lesson-run");
+      btn.disabled = false;
+      btn.classList.remove("opacity-60");
+    }
+
+    function showLessonError(msg) {
+      const errEl = document.getElementById("lesson-error");
+      errEl.textContent = msg;
+      errEl.classList.remove("hidden");
+    }
+    function hideLessonError() {
+      document.getElementById("lesson-error").classList.add("hidden");
+    }
+
+    function setLessonBusy(busy, label) {
+      const btn = document.getElementById("btn-lesson-run");
+      const spinner = document.getElementById("lesson-spinner");
+      const labelEl = document.getElementById("ui-lesson-run-btn");
+      btn.disabled = busy;
+      btn.classList.toggle("opacity-60", busy);
+      spinner.classList.toggle("hidden", !busy);
+      if (label) labelEl.textContent = label;
+    }
+
+    async function runLessonPDF() {
+      const t = UI_STRINGS[state.lang];
+      const f = state.lessonFile;
+      if (!f) return;
+      hideLessonError();
+      const out = document.getElementById("lesson-output");
+      out.classList.add("hidden");
+      out.innerHTML = "";
+      setLessonBusy(true, t.lessonThinking);
+      let text = "";
+      try {
+        text = await extractPdfText(f);
+        if (!text || text.length < 40) throw new Error("empty");
+      } catch (e) {
+        setLessonBusy(false, t.lessonRunBtn);
+        showLessonError(e.message === "empty" ? t.lessonErrEmpty : t.lessonErrRead);
+        return;
+      }
+      try {
+        const res = await fetch("/api/lesson", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, lang: state.lang })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data || !Array.isArray(data.simple) || !data.simple.length) throw new Error("api");
+        state.lessonData = data;
+        state.lessonTaskDone = (data.tasks || []).map(() => false);
+        state.lessonQuizAnswered = false;
+        renderLessonOutput(false);
+      } catch (e) {
+        showLessonError(t.lessonErrApi);
+      }
+      setLessonBusy(false, t.lessonRunBtn);
+    }
+
+    function renderLessonLabels() {
+      const t = UI_STRINGS[state.lang];
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      set("ui-lesson-title", t.lessonTitle);
+      set("ui-lesson-sub", t.lessonSub);
+      set("ui-lesson-drop-title", t.lessonDropTitle);
+      set("ui-lesson-drop-hint", t.lessonDropHint);
+      const runBtn = document.getElementById("ui-lesson-run-btn");
+      const btn = document.getElementById("btn-lesson-run");
+      if (runBtn && btn && !btn.disabled) runBtn.textContent = t.lessonRunBtn;
+      if (state.lessonData) renderLessonOutput(true);
+    }
+
+    function renderLessonOutput(quiet) {
+      const t = UI_STRINGS[state.lang];
+      const d = state.lessonData;
+      const out = document.getElementById("lesson-output");
+      if (!d) { out.classList.add("hidden"); return; }
+      const doneArr = state.lessonTaskDone || (d.tasks || []).map(() => false);
+      const simpleHtml = (d.simple || []).map((s) =>
+        `<p class="p-3 rounded-2xl bento-soft text-sm sm:text-base leading-relaxed">${escapeHtml(s)}</p>`
+      ).join("");
+      const tasksHtml = (d.tasks || []).map((tk, i) => {
+        const done = !!doneArr[i];
+        return `
+        <div id="lesson-task-row-${i}" class="flex items-center gap-3 rounded-2xl bento-soft px-4 py-3" ${done ? 'style="opacity:0.6"' : ""}>
+          <span class="text-2xl shrink-0" aria-hidden="true">${tk.icon || "📌"}</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-extrabold text-sm">${escapeHtml(tk.title || "")}</div>
+            <div class="text-xs sm:text-sm leading-snug" style="color: var(--text-muted);">${escapeHtml(tk.text || "")}</div>
+          </div>
+          <button onclick="toggleLessonTask(${i})" class="tactile-btn px-3.5 py-2 rounded-xl text-xs font-extrabold shrink-0 ${done ? "bg-white/70" : "pill-plum"}">${done ? t.lessonTaskDoneBtn : t.lessonTaskBtn}</button>
+        </div>`;
+      }).join("");
+      const allDone = doneArr.length > 0 && doneArr.every(Boolean);
+      const quiz = d.quiz ? `
+        <div class="bento-card p-5 sm:p-6 flex flex-col gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl" aria-hidden="true">⭐</span>
+            <h3 class="font-nunito font-black text-base sm:text-lg">${t.lessonQuizTitle}</h3>
+          </div>
+          <p class="font-bold text-sm sm:text-base">${escapeHtml(d.quiz.q || "")}</p>
+          <div class="flex flex-col gap-2" id="lesson-quiz-opts">
+            ${(d.quiz.options || []).map((o, i) => {
+              const answered = state.lessonQuizAnswered;
+              const isCorrect = i === (Number(d.quiz.correct) || 0);
+              const style = answered ? (isCorrect ? " style=\"background: var(--sage-soft); color: var(--sage);\"" : " style=\"opacity:0.55;\"") : "";
+              return `<button onclick="answerLessonQuiz(${i})" id="lesson-quiz-opt-${i}" ${answered ? "disabled" : ""} ${style} class="tactile-btn w-full text-left px-4 py-3 rounded-2xl bento-soft font-bold text-sm transition-all">${escapeHtml(o)}</button>`;
+            }).join("")}
+          </div>
+          <p id="lesson-quiz-feedback" class="${state.lessonQuizAnswered ? "" : "hidden"} text-sm font-extrabold" ${state.lessonQuizAnswered ? (state.lessonQuizCorrect ? 'style="color: var(--sage);"' : 'style="color: #92610C;"') : ""}>${state.lessonQuizAnswered ? (state.lessonQuizCorrect ? t.lessonCorrect : t.lessonWrong) : ""}</p>
+        </div>` : "";
+      out.innerHTML = `
+        <div class="bento-card p-5 sm:p-6 flex flex-col gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl" aria-hidden="true">📖</span>
+              <h3 class="font-nunito font-black text-base sm:text-lg">${t.lessonExplainTitle}${d.title ? " · " + escapeHtml(d.title) : ""}</h3>
+            </div>
+            <button onclick="speakLessonSimple()" class="tactile-btn px-4 py-2 rounded-2xl bento-soft font-extrabold text-xs">${t.lessonReadAloud}</button>
+          </div>
+          <div class="flex flex-col gap-2.5">${simpleHtml}</div>
+        </div>
+        <div class="bento-card p-5 sm:p-6 flex flex-col gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl" aria-hidden="true">🎯</span>
+            <h3 class="font-nunito font-black text-base sm:text-lg">${t.lessonTasksTitle}</h3>
+          </div>
+          <div class="flex flex-col gap-2.5">${tasksHtml}</div>
+          <p id="lesson-tasks-done" class="${allDone ? "" : "hidden"} text-sm font-extrabold" style="color: var(--sage);">${allDone ? t.lessonAllDone : ""}</p>
+        </div>
+        ${quiz}`;
+      out.classList.remove("hidden");
+      if (!quiet) requestAnimationFrame(() => out.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+
+    function speakLessonSimple() {
+      const d = state.lessonData;
+      if (!d) return;
+      speakPhraseSimple((d.simple || []).join(" "), 0.92);
+    }
+
+    function toggleLessonTask(i) {
+      if (!state.lessonData || !state.lessonTaskDone) return;
+      state.lessonTaskDone[i] = !state.lessonTaskDone[i];
+      renderLessonOutput(true);
+    }
+
+    function answerLessonQuiz(i) {
+      const d = state.lessonData;
+      if (!d || !d.quiz || state.lessonQuizAnswered) return;
+      state.lessonQuizAnswered = true;
+      state.lessonQuizCorrect = i === (Number(d.quiz.correct) || 0);
+      renderLessonOutput(true);
+    }
+
+    /**
      * 11. SMART TASK BREAKER (GOBLIN TOOLS MAGIC TODO)
      */
     function selectTodoPreset(key, silent = false) {
@@ -665,6 +887,7 @@
       renderBookPage();
       renderWordHelperCard();
       renderAdapterOutput();
+      renderLessonLabels();
       renderTodoToolbar();
       renderTodoSteps();
       renderScheduleView();
@@ -812,10 +1035,14 @@
       document.getElementById("ui-cell6-title").textContent = t.cell6Title;
       document.getElementById("ui-cell6-desc").textContent = t.cell6Desc;
       document.getElementById("ui-cell6-cta").textContent = t.cell6Cta;
+      const c7t = document.getElementById("ui-cell7-title"); if (c7t) c7t.textContent = t.cell7Title;
+      const c7d = document.getElementById("ui-cell7-desc"); if (c7d) c7d.textContent = t.cell7Desc;
+      const c7c = document.getElementById("ui-cell7-cta"); if (c7c) c7c.textContent = t.cell7Cta;
+      const c7b = document.getElementById("ui-cell7-badge"); if (c7b) c7b.textContent = t.lessonCardBadge;
 
       document.getElementById("ui-lib-title").textContent = t.libTitle;
       document.getElementById("ui-lib-sub").textContent = t.libSub;
-      ["1", "2", "3", "4", "5", "6"].forEach(n => {
+      ["1", "2", "3", "4", "5", "6", "7", "lesson"].forEach(n => {
         const el = document.getElementById(`ui-back-hub-${n}`);
         if (el) el.textContent = t.backHub;
       });

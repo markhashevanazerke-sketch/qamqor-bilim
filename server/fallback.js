@@ -41,4 +41,34 @@ function localTodoFallback(task, level, lang) {
   return { steps: ["Устроиться и выдохнуть", `Открыть задачу: ${task}`, "Первый лёгкий шаг", "Отдых 1 минуту", "Второй шаг", "Третий шаг", "Финал: «Готово! Молодец!»"] };
 }
 
-module.exports = { localAdapterFallback, localTodoFallback };
+/**
+ * «Мой урок»: локальный фолбэк — если LLM недоступна, объясняем по правилам.
+ */
+function localLessonFallback(text, lang) {
+  const kk = lang === "kk";
+  const sentences = text.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
+  const simple = (sentences.length ? sentences : [text]).slice(0, 5).map((s) =>
+    s.length > 120 ? s.slice(0, 117) + "…" : s
+  );
+  const words = text.split(/\s+/).map((w) => w.replace(/[.,;:!?«»()"']/g, "")).filter((w) => w.length > 4).slice(0, 2);
+  const keyWord = words[0] || (kk ? "тақырып" : "тема");
+  const tasks = [
+    { icon: "📖", title: kk ? "Оқу" : "Чтение", text: kk ? "Бірінші сөйлемді дауыстап оқу" : "Прочитай первое предложение вслух" },
+    { icon: "🗣️", title: kk ? "Айту" : "Рассказ", text: kk ? `Тақырып туралы бір сөйлемді өз сөзіңмен айту` : "Расскажи своими словами одно предложение о теме" },
+    { icon: "✍️", title: kk ? "Жазу" : "Запись", text: kk ? `«${keyWord}» сөзін жазу` : `Напиши слово «${keyWord}»` },
+    { icon: "🎨", title: kk ? "Сюжету сызу" : "Рисунок", text: kk ? "Сабақ туралы кішкентай сурет сызу" : "Нарисуй маленький рисунок про этот урок" },
+    { icon: "⭐", title: kk ? "Мақтау" : "Похвала", text: kk ? "Өзіңді мақта: «Мен оқид аламын!»" : "Похвали себя: «Я справляюсь!»" }
+  ];
+  const quiz = {
+    q: kk ? `Сабақта не турды?` : "О чём был этот урок?",
+    options: [
+      sentences[0] || text,
+      kk ? "Аңдамалар туралы" : "Про правила вежливости",
+      kk ? "Аспаздық туралы" : "Про готовку"
+    ],
+    correct: 0
+  };
+  return { title: keyWord, simple, tasks, quiz };
+}
+
+module.exports = { localAdapterFallback, localTodoFallback, localLessonFallback };

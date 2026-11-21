@@ -12,6 +12,7 @@ const SECTION_NAMES = {
   todo: "Дробитель задач",
   schedule: "План и история",
   aac: "Карточки AAC",
+  lesson: "Мой урок (PDF)",
 };
 const SECTION_ICONS = {
   hub: "🏠",
@@ -22,6 +23,7 @@ const SECTION_ICONS = {
   todo: "🪜",
   schedule: "🗓️",
   aac: "💬",
+  lesson: "📄",
 };
 
 function el(id) { return document.getElementById(id); }

@@ -262,9 +262,9 @@
           </div>
         </div>
 
-        <!-- BOTTOM ROW (4 + 4 + 4): CELL 4 + CELL 5 + CELL 6 -->
+        <!-- BOTTOM ROW (3 + 3 + 3 + 3): CELL 4 + CELL 5 + CELL 6 + CELL 7 -->
         <!-- CELL 4: VISUAL SCHEDULE & SOCIAL STORY -->
-        <div onclick="navigateView('schedule')" role="button" tabindex="0" class="lg:col-span-4 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
+        <div onclick="navigateView('schedule')" role="button" tabindex="0" class="lg:col-span-3 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
           <div>
             <div class="flex items-center justify-between gap-2 mb-2">
               <span class="w-11 h-11 rounded-2xl pill-plum flex items-center justify-center shrink-0">
@@ -293,7 +293,7 @@
         </div>
 
         <!-- CELL 5: TALKING AAC PICTOGRAM BOARD -->
-        <div onclick="navigateView('aac')" role="button" tabindex="0" class="lg:col-span-4 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
+        <div onclick="navigateView('aac')" role="button" tabindex="0" class="lg:col-span-3 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
           <div>
             <div class="flex items-center justify-between gap-2 mb-2">
               <span class="w-11 h-11 rounded-2xl pill-sage flex items-center justify-center shrink-0">
@@ -319,7 +319,7 @@
         </div>
 
         <!-- CELL 6: AI DRAWING BOARD (GESTURE PINCH) -->
-        <div onclick="navigateView('board')" role="button" tabindex="0" class="lg:col-span-4 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
+        <div onclick="navigateView('board')" role="button" tabindex="0" class="lg:col-span-3 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
           <div>
             <div class="flex items-center justify-between gap-2 mb-2">
               <span class="w-11 h-11 rounded-2xl pill-sky flex items-center justify-center shrink-0">
@@ -342,6 +342,35 @@
           <div class="pt-2 border-t flex items-center justify-between" style="border-color: var(--border-card);">
             <span id="ui-cell6-cta" class="text-sm font-extrabold" style="color: var(--sky);">Открыть доску →</span>
             <span class="text-xs font-bold px-2.5 py-1 rounded-xl bento-soft">📷 Жесты</span>
+          </div>
+        </div>
+
+        <!-- CELL 7: MY LESSON (PDF → AI SIMPLE EXPLANATION + MINI-TASKS) -->
+        <div onclick="navigateView('lesson')" role="button" tabindex="0" class="lg:col-span-3 bento-card bento-card-interactive p-5 sm:p-6 flex flex-col justify-between gap-3 cursor-pointer">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="w-11 h-11 rounded-2xl pill-plum flex items-center justify-center shrink-0">
+                <svg class="qi-icon w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <path d="M14 2v6h6"/>
+                  <path d="M9 13h6"/>
+                  <path d="M9 17h6"/>
+                </svg>
+              </span>
+              <span id="ui-cell7-badge" class="px-3 py-1 rounded-full text-xs font-extrabold pill-plum">
+                PDF + ИИ
+              </span>
+            </div>
+            <h2 id="ui-cell7-title" class="font-nunito font-black text-lg sm:text-xl">
+              Мой урок (объясни просто)
+            </h2>
+            <p id="ui-cell7-desc" class="text-sm mt-1 leading-relaxed" style="color: var(--text-muted);">
+              Загрузи PDF урока от учителя — ИИ объяснит простыми словами и даст мини-задания.
+            </p>
+          </div>
+          <div class="pt-2 border-t flex items-center justify-between" style="border-color: var(--border-card);">
+            <span id="ui-cell7-cta" class="text-sm font-extrabold" style="color: var(--plum);">Открыть «Мой урок» →</span>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-xl bento-soft">📄 PDF</span>
           </div>
         </div>
 
@@ -600,6 +629,68 @@
       <!-- 4 Adapted Output Cards in Bento Grid -->
       <div id="adapter-output-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
         <!-- Populated dynamically by JS -->
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW: MY LESSON — PDF UPLOAD → AI SIMPLE EXPLANATION + MINI-TASKS   -->
+    <!-- =================================================================== -->
+    <section id="view-lesson" class="hidden flex flex-col gap-5">
+      <div class="max-w-4xl w-full mx-auto flex flex-col gap-5">
+        <div class="bento-card p-5 sm:p-6 flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="w-12 h-12 rounded-2xl pill-plum flex items-center justify-center shrink-0">
+                <svg class="qi-icon w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <path d="M14 2v6h6"/>
+                  <path d="M9 13h6"/>
+                  <path d="M9 17h6"/>
+                </svg>
+              </span>
+              <div>
+                <h1 id="ui-lesson-title" class="font-nunito font-black text-xl sm:text-2xl">
+                  Мой урок — объясни просто
+                </h1>
+                <p id="ui-lesson-sub" class="text-xs sm:text-sm" style="color: var(--text-muted);">
+                  Загрузи PDF-файл урока, который дал учитель — ИИ объяснит тему простыми словами и даст маленькие добрые задания
+                </p>
+              </div>
+            </div>
+            <button onclick="navigateView('hub')" class="tactile-btn px-4 py-2 rounded-2xl bento-soft font-nunito font-extrabold text-sm">
+              <span id="ui-back-hub-lesson">← На главную</span>
+            </button>
+          </div>
+
+          <!-- PDF Upload Zone (клик + drag&drop) -->
+          <div id="lesson-dropzone"
+            onclick="document.getElementById('lesson-file-input').click()"
+            ondragover="event.preventDefault(); this.style.background='var(--plum-soft)'"
+            ondragleave="this.style.background='var(--bg-soft)'"
+            ondrop="event.preventDefault(); this.style.background='var(--bg-soft)'; const f = event.dataTransfer.files && event.dataTransfer.files[0]; if (f) setLessonFile(f);"
+            class="cursor-pointer rounded-3xl border-4 border-dashed flex flex-col items-center justify-center gap-2 px-6 py-10 transition-all"
+            style="border-color: var(--plum); background: var(--bg-soft);"
+            role="button" tabindex="0" aria-label="Загрузить PDF урока">
+            <span class="text-4xl" aria-hidden="true">📄</span>
+            <span id="ui-lesson-drop-title" class="font-nunito font-extrabold text-base sm:text-lg">Нажми и выбери PDF-файл урока</span>
+            <span id="ui-lesson-drop-hint" class="text-xs font-bold" style="color: var(--text-muted);">или перетащи файл сюда • PDF до 10 МБ</span>
+            <span id="lesson-file-name" class="hidden mt-1 px-3 py-1.5 rounded-full bento-soft text-xs font-extrabold break-all max-w-full"></span>
+          </div>
+          <input type="file" id="lesson-file-input" accept="application/pdf,.pdf" class="hidden" onchange="onLessonFileSelected(event)" />
+
+          <div class="flex justify-end">
+            <button id="btn-lesson-run" onclick="runLessonPDF()" disabled class="tactile-btn px-6 py-3 rounded-2xl btn-plum font-nunito font-extrabold text-sm sm:text-base flex items-center gap-2 opacity-60">
+              <span id="lesson-spinner" class="hidden animate-spin inline-flex items-center justify-center">
+                <svg class="qi-icon w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9"/></svg>
+              </span>
+              <span id="ui-lesson-run-btn">Объясни урок (ИИ)</span>
+            </button>
+          </div>
+          <p id="lesson-error" class="hidden text-sm font-bold" style="color: #B4232A;"></p>
+        </div>
+
+        <!-- Output: explanation + tasks + quiz (rendered by JS) -->
+        <div id="lesson-output" class="hidden flex flex-col gap-4"></div>
       </div>
     </section>
 
@@ -893,7 +984,6 @@
       <span>Библиотека • ИИ-адаптер • Дробитель задач • План • AAC</span>
       <span>Сделано спокойно, с заботой 🤍</span>
       <span id="app-version" class="px-2 py-0.5 rounded-full text-[11px] font-extrabold" style="background: var(--sage-soft); color: var(--sage);">v3.0</span>
-      <span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold" style="background: var(--sky-soft); color: var(--sky);">🌐 Демо-версия (офлайн, без ИИ)</span>
     </div>
   </footer>
   </div>
@@ -962,7 +1052,6 @@
   <!-- ===================================================================== -->
   <!-- DATA & INTERACTIVE ENGINE (split from the single-file prototype)     -->
   <!-- ===================================================================== -->
-  <script src="js/offline-api.js?v=3"></script>
   <script src="js/data.js?v=3"></script>
   <script src="js/app.js?v=3"></script>
     <!-- =================================================================== -->
