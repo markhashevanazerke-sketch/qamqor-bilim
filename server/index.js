@@ -5,8 +5,8 @@
  *   POST /api/adapter  — ИИ-адаптер урока «1 в 4» (Diffit + LittleLit + PECS + Quiz)
  *   POST /api/todo     — умный дробитель задач
  */
-require("dotenv").config({ quiet: true });
 const path = require("path");
+require("dotenv").config({ quiet: true, path: path.join(__dirname, "..", ".env") });
 const express = require("express");
 const { chatJSON, config } = require("./llm");
 const { adapterSystem, adapterUser, topicTextSystem, topicTextUser, todoSystem, todoUser, analystSystem, analystUser, friendSystem, friendUser } = require("./prompts");
