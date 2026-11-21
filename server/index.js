@@ -258,7 +258,10 @@ app.post("/api/usage", (req, res) => {
 
 app.post("/api/chat", async (req, res) => {
   const text = str(req.body?.text, 500).trim();
-  const lang = req.body?.lang === "kk" ? "kk" : "ru";
+  // Язык ребёнка — по его тексту: казахские буквы (ә ғ қ ң ө ү ұ і һ) ⇒ казахский,
+  // иначе — язык приложения.
+  const uiLang = req.body?.lang === "kk" ? "kk" : "ru";
+  const lang = /[әғқңөүұіһӘҒҚҢӨҮҰІҺ]/.test(text) ? "kk" : uiLang;
   if (!text) return res.status(400).json({ error: "text required" });
 
   db.addMessage("child", text, lang);

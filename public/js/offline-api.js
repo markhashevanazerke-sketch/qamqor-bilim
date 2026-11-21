@@ -220,7 +220,9 @@
       var text2 = String(body.text || "").trim();
       if (!text2) return Promise.resolve(result(400, { error: "text required" }));
       addMessage("child", text2);
-      var reply = demoFriend(text2, lang);
+      // Язык ребёнка — по его тексту (казацкие буквы ⇒ казахский)
+      var childLang = /[әғқңөүұіһӘҒҚҢӨҮҰІҺ]/.test(text2) ? "kk" : lang;
+      var reply = demoFriend(text2, childLang);
       addMessage("friend", reply);
       return Promise.resolve(result(200, { child: text2, friend: reply, source: "offline" }));
     }
